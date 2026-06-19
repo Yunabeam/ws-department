@@ -285,27 +285,27 @@ const STATUS_LABELS = {
 };
 
 // ============================================================
+// HARDCODED USERS (email → { password, id })
+// id ต้องตรงกับ profiles.id ใน Supabase
+// ============================================================
+const USERS_DB = {
+  'admin@ws.com': { password: 'Admin@1234', id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69' }
+};
+
+// ============================================================
 // INIT
 // ============================================================
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    await loadProfile();
-    showApp();
-  } else {
-    showLogin();
-  }
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      currentUser = session.user;
+  const saved = localStorage.getItem('ws_session');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
       await loadProfile();
-      showApp();
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null; currentProfile = null;
-      showLogin();
-    }
-  });
+      if (currentProfile) { showApp(); return; }
+    } catch(e) {}
+    localStorage.removeItem('ws_session');
+  }
+  showLogin();
 }
 
 async function loadProfile() {
@@ -317,15 +317,28 @@ async function loadProfile() {
 // AUTH
 // ============================================================
 async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-password').value;
   const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-error');
   if (!email || !pass) { showLoginError('กรุณากรอกข้อมูลให้ครบ'); return; }
   btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
-  err.style.display = 'none';
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { showLoginError(error.message); btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; }
+
+  const user = USERS_DB[email];
+  if (!user || user.password !== pass) {
+    showLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+    return;
+  }
+
+  currentUser = { id: user.id, email };
+  localStorage.setItem('ws_session', JSON.stringify(currentUser));
+  await loadProfile();
+  if (!currentProfile) {
+    showLoginError('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin');
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+    return;
+  }
+  showApp();
 }
 
 function showLoginError(msg) {
@@ -336,7 +349,9 @@ function showLoginError(msg) {
 async function doLogout() {
   if (notifChannel) sb.removeChannel(notifChannel);
   if (refreshTimer) clearInterval(refreshTimer);
-  await sb.auth.signOut();
+  localStorage.removeItem('ws_session');
+  currentUser = null; currentProfile = null;
+  showLogin();
 }
 
 // ============================================================
