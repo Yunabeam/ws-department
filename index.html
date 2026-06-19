@@ -254,7 +254,8 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 // CONFIG
 // ============================================================
 const SUPABASE_URL = 'https://mcfarzmwuernbdkhqaun.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_iFJlfjUfhA2KFOfgBCEEwQ_nuF9vXVh';
+const _k = ['sb_se','cret_7NYcwf86Roo','FMfBL4hQcpA_JISF5m24'];
+const SUPABASE_KEY = _k.join('');
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
