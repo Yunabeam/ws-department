@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WS Department Management</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1e3a5f;--teal:#0d9488;--green:#16a34a;--amber:#d97706;--red:#dc2626;
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+  --sidebar-w:240px;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+/* LOGIN */
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--navy),#2d5a8e)}
+.login-card{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h1{color:var(--navy);font-size:24px;font-weight:700}
+.login-logo p{color:var(--muted);font-size:13px;margin-top:4px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-weight:600;margin-bottom:6px;font-size:13px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;transition:.2s;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;font-family:inherit}
+.btn-primary{background:var(--teal);color:#fff}.btn-primary:hover{background:#0f766e}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:#162d4a}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{background:#b45309}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#b91c1c}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border)}.btn-ghost:hover{background:var(--bg)}
+.btn-sm{padding:6px 12px;font-size:13px}
+.btn-full{width:100%;justify-content:center}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+/* APP SHELL */
+#app{display:none;height:100vh;overflow:hidden;flex-direction:column}
+#app.active{display:flex}
+/* TOPBAR */
+.topbar{background:var(--navy);color:#fff;height:56px;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:100}
+.topbar-logo{font-weight:700;font-size:16px;flex:1}
+.topbar-logo span{color:var(--teal)}
+.notif-btn{position:relative;background:none;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:6px;font-size:18px;transition:.2s}
+.notif-btn:hover{background:rgba(255,255,255,.1)}
+.notif-badge{position:absolute;top:2px;right:2px;background:var(--red);color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.user-info{display:flex;align-items:center;gap:8px}
+.user-name{font-size:13px;font-weight:600}
+.role-badge{padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;background:var(--teal);color:#fff}
+.hamburger{display:none;background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:6px}
+/* LAYOUT */
+.app-body{display:flex;flex:1;overflow:hidden}
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--navy);color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:.3s}
+.sidebar-nav{padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;cursor:pointer;transition:.2s;font-size:14px;color:rgba(255,255,255,.75);border-left:3px solid transparent;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(13,148,136,.2);color:#fff;border-left-color:var(--teal)}
+.nav-badge{background:var(--red);color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;margin-left:auto}
+/* MAIN */
+.main-content{flex:1;overflow-y:auto;padding:24px}
+/* CARDS */
+.card{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:20px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:700;color:var(--navy)}
+/* TABLES */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:#f8fafc}
+/* STATUS BADGES */
+.status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:600}
+.status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.7}
+.s-pending_eng,.s-pending_executive{background:#fef3c7;color:#92400e}
+.s-approved,.s-planning,.s-assigning{background:#dbeafe;color:#1e40af}
+.s-in_progress{background:#d1fae5;color:#065f46}
+.s-pending_qc{background:#ede9fe;color:#5b21b6}
+.s-qc_pass{background:#dcfce7;color:#166534}
+.s-completed{background:#f0fdf4;color:#14532d}
+.s-rejected,.s-failed_qc{background:#fee2e2;color:#7f1d1d}
+.s-assigned{background:#dbeafe;color:#1e40af}
+.s-confirmed{background:#dcfce7;color:#166534}
+.s-done_by_worker{background:#fef9c3;color:#854d0e}
+/* PRIORITY */
+.priority-normal{color:var(--muted)}
+.priority-urgent{color:var(--amber);font-weight:700}
+.priority-very_urgent{color:var(--red);font-weight:700}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:16px;text-align:center}
+.stat-num{font-size:32px;font-weight:800;color:var(--navy)}
+.stat-label{color:var(--muted);font-size:13px;margin-top:4px}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-lg{max-width:800px}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-size:18px;font-weight:700;color:var(--navy)}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+/* NOTIFICATION PANEL */
+.notif-panel{position:fixed;top:56px;right:0;width:360px;height:calc(100vh - 56px);background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:.3s}
+.notif-panel.open{transform:translateX(0)}
+.notif-panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.notif-panel-title{font-weight:700;font-size:15px}
+.notif-list{flex:1;overflow-y:auto}
+.notif-item{padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:.2s}
+.notif-item:hover{background:#f8fafc}
+.notif-item.unread{background:#eff6ff;border-left:3px solid var(--teal)}
+.notif-item-title{font-weight:600;font-size:13px}
+.notif-item-msg{color:var(--muted);font-size:12px;margin-top:3px}
+.notif-item-time{color:var(--muted);font-size:11px;margin-top:4px}
+/* TOAST */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:8px;color:#fff;font-size:14px;font-weight:500;max-width:350px;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.toast-success{background:var(--green)}
+.toast-error{background:var(--red)}
+.toast-info{background:var(--teal)}
+/* SPINNER */
+.spinner{width:36px;height:36px;border:4px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 1s linear infinite;margin:40px auto}
+.spinner-sm{width:18px;height:18px;border-width:2px;margin:0;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* STEP CARD */
+.step-card{border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;position:relative}
+.step-card-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.step-seq{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+/* DETAIL ROW */
+.detail-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.detail-item{flex:1;min-width:160px}
+.detail-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.detail-value{font-size:14px;font-weight:500}
+/* FORM ROW */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+/* SECTION HEADER */
+.section-header{margin-bottom:20px}
+.section-title{font-size:20px;font-weight:800;color:var(--navy)}
+.section-sub{color:var(--muted);margin-top:4px}
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 24px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{position:fixed;top:56px;left:0;height:calc(100vh - 56px);z-index:150;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .hamburger{display:flex}
+  .main-content{padding:16px}
+  .modal{margin:8px;max-height:calc(100vh - 16px)}
+  .notif-panel{width:100%}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+/* KPI CHART */
+.kpi-bar-wrap{margin-bottom:8px}
+.kpi-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:var(--text)}
+.kpi-bar-bg{background:var(--border);border-radius:4px;height:10px}
+.kpi-bar-fill{height:10px;border-radius:4px;background:var(--teal);transition:.5s}
+/* PAGE HIDE */
+.page{display:none}.page.active{display:block}
+/* RADIO GROUP */
+.radio-group{display:flex;gap:12px;flex-wrap:wrap}
+.radio-label{display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;transition:.2s}
+.radio-label:has(input:checked){border-color:var(--teal);background:#f0fdfa}
+/* DIVIDER */
+hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>⚙️ WS Department</h1>
+      <p>ระบบจัดการงาน Workshop</p>
+    </div>
+    <div class="form-group">
+      <label>อีเมล</label>
+      <input type="email" id="login-email" placeholder="email@company.com">
+    </div>
+    <div class="form-group">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="login-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <p id="login-error" style="color:var(--red);font-size:13px;margin-top:10px;text-align:center;display:none"></p>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-logo"><span>WS</span> Department</div>
+    <button class="notif-btn" onclick="toggleNotifPanel()">
+      🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
+    </button>
+    <div class="user-info">
+      <div>
+        <div class="user-name" id="user-name-display">-</div>
+      </div>
+      <span class="role-badge" id="role-badge-display">-</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">ออก</button>
+  </div>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-content" id="main-content">
+      <div class="spinner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-panel-header">
+    <span class="notif-panel-title">🔔 การแจ้งเตือน</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="markAllRead()">อ่านทั้งหมด</button>
+      <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
+    </div>
+  </div>
+  <div class="notif-list" id="notif-list"><div class="empty"><div class="empty-icon">🔕</div>ไม่มีการแจ้งเตือน</div></div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- MODALS -->
+<!-- Generic Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal" role="dialog">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">-</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://mcfarzmwuernbdkhqaun.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_iFJlfjUfhA2KFOfgBCEEwQ_nuF9vXVh';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let currentProfile = null;
+let currentPage = null;
+let notifChannel = null;
+let refreshTimer = null;
+let sidebarOpen = false;
+
+// ============================================================
+// ROLE LABELS
+// ============================================================
+const ROLE_LABELS = {
+  user: 'ผู้ใช้งาน', eng_manager: 'หัวหน้าวิศวกรรม',
+  ws_manager: 'หัวหน้า WS', ws_worker: 'ลูกน้อง WS',
+  qc: 'QC', executive: 'ผู้บริหาร'
+};
+
+const STATUS_LABELS = {
+  pending_eng:'รออนุมัติ (วศ.)', pending_executive:'รออนุมัติผู้บริหาร',
+  approved:'อนุมัติแล้ว', planning:'วางแผน', assigning:'กำลังมอบหมาย',
+  in_progress:'กำลังดำเนินการ', pending_qc:'รอตรวจ QC',
+  qc_pass:'QC ผ่าน', completed:'เสร็จสิ้น', rejected:'ปฏิเสธ'
+};
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadProfile();
+    showApp();
+  } else {
+    showLogin();
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      await loadProfile();
+      showApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null; currentProfile = null;
+      showLogin();
+    }
+  });
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = data;
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  if (!email || !pass) { showLoginError('กรุณากรอกข้อมูลให้ครบ'); return; }
+  btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
+  err.style.display = 'none';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { showLoginError(error.message); btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function doLogout() {
+  if (notifChannel) sb.removeChannel(notifChannel);
+  if (refreshTimer) clearInterval(refreshTimer);
+  await sb.auth.signOut();
+}
+
+// ============================================================
+// SHOW/HIDE
+// ============================================================
+function showLogin() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').classList.remove('active');
+}
+
+async function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  if (!currentProfile) { showToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin','error'); return; }
+  document.getElementById('user-name-display').textContent = currentProfile.full_name;
+  document.getElementById('role-badge-display').textContent = ROLE_LABELS[currentProfile.role] || currentProfile.role;
+  buildSidebar();
+  await loadNotifications();
+  setupRealtime();
+  refreshTimer = setInterval(() => { loadNotifications(); if (currentPage) navigateTo(currentPage, true); }, 30000);
+  navigateTo(getDefaultPage());
+}
+
+function getDefaultPage() {
+  const r = currentProfile.role;
+  if (r === 'eng_manager') return 'dashboard';
+  if (r === 'ws_manager') return 'ws-plan-list';
+  if (r === 'ws_worker') return 'my-tasks';
+  if (r === 'user') return 'create-request';
+  if (r === 'qc') return 'qc-queue';
+  if (r === 'executive') return 'exec-approvals';
+  return 'dashboard';
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+const NAV_ITEMS = {
+  eng_manager: [
+    { id:'dashboard', icon:'📊', label:'ภาพรวม' },
+    { id:'pending-approvals', icon:'📋', label:'ใบคำร้องรออนุมัติ' },
+    { id:'all-projects', icon:'📁', label:'โปรเจคทั้งหมด' },
+    { id:'assign-workers', icon:'👷', label:'มอบหมายงาน' },
+    { id:'kpi-report', icon:'📈', label:'รายงาน KPI' },
+  ],
+  ws_manager: [
+    { id:'ws-plan-list', icon:'📝', label:'รอวาง Process Plan' },
+    { id:'ws-process-plans', icon:'⚙️', label:'Process Plans' },
+    { id:'ws-confirm-steps', icon:'✅', label:'ยืนยันงานลูกน้อง' },
+  ],
+  ws_worker: [
+    { id:'my-tasks', icon:'🔧', label:'งานของฉัน', badge:'task-badge' },
+    { id:'task-history', icon:'📜', label:'ประวัติงาน' },
+  ],
+  user: [
+    { id:'create-request', icon:'➕', label:'สร้างใบคำร้องใหม่' },
+    { id:'my-requests', icon:'📋', label:'ใบคำร้องของฉัน' },
+  ],
+  qc: [
+    { id:'qc-queue', icon:'🔍', label:'รอตรวจ QC' },
+    { id:'qc-history', icon:'📜', label:'ประวัติ QC' },
+  ],
+  executive: [
+    { id:'exec-approvals', icon:'✍️', label:'รออนุมัติ' },
+  ],
+};
+
+function buildSidebar() {
+  const items = NAV_ITEMS[currentProfile.role] || [];
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = items.map(i => `
+    <div class="nav-item" id="nav-${i.id}" onclick="navigateTo('${i.id}')">
+      <span>${i.icon}</span>
+      <span>${i.label}</span>
+      ${i.badge ? `<span class="nav-badge" id="${i.badge}" style="display:none">0</span>` : ''}
+    </div>
+  `).join('');
+}
+
+function setActiveNav(id) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('nav-' + id);
+  if (el) el.classList.add('active');
+}
+
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('open', sidebarOpen);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+async function navigateTo(page, silent = false) {
+  currentPage = page;
+  if (!silent) {
+    setActiveNav(page);
+    if (sidebarOpen) { sidebarOpen = false; document.getElementById('sidebar').classList.remove('open'); }
+  }
+  const mc = document.getElementById('main-content');
+  if (!silent) mc.innerHTML = '<div class="spinner"></div>';
+  try {
+    switch(page) {
+      case 'dashboard': await renderDashboard(mc); break;
+      case 'pending-approvals': await renderPendingApprovals(mc); break;
+      case 'all-projects': await renderAllProjects(mc); break;
+      case 'assign-workers': await renderAssignWorkers(mc); break;
+      case 'kpi-report': await renderKPIReport(mc); break;
+      case 'ws-plan-list': await renderWSPlanList(mc); break;
+      case 'ws-process-plans': await renderWSProcessPlans(mc); break;
+      case 'ws-confirm-steps': await renderWSConfirmSteps(mc); break;
+      case 'my-tasks': await renderMyTasks(mc); break;
+      case 'task-history': await renderTaskHistory(mc); break;
+      case 'create-request': await renderCreateRequest(mc); break;
+      case 'my-requests': await renderMyRequests(mc); break;
+      case 'qc-queue': await renderQCQueue(mc); break;
+      case 'qc-history': await renderQCHistory(mc); break;
+      case 'exec-approvals': await renderExecApprovals(mc); break;
+      default: mc.innerHTML = '<div class="card"><p>ไม่พบหน้านี้</p></div>';
+    }
+  } catch(e) {
+    console.error(e);
+    mc.innerHTML = `<div class="card"><p style="color:var(--red)">เกิดข้อผิดพลาด: ${e.message}</p></div>`;
+  }
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+async function loadNotifications() {
+  const { data } = await sb.from('notifications').select('*')
+    .eq('user_id', currentProfile.id).order('created_at', { ascending: false }).limit(50);
+  const notifs = data || [];
+  const unread = notifs.filter(n => !n.is_read);
+  const badge = document.getElementById('notif-badge');
+  if (unread.length > 0) { badge.style.display = 'flex'; badge.textContent = unread.length; }
+  else badge.style.display = 'none';
+  const list = document.getElementById('notif-list');
+  if (notifs.length === 0) { list.innerHTML = '<div class="empty"><div class="empty-icon">🔕</div>ไม่มีการแจ้งเตือน</div>'; return; }
+  list.innerHTML = notifs.map(n => `
+    <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="clickNotif('${n.id}','${n.project_id||''}')">
+      <div class="notif-item-title">${esc(n.title)}</div>
+      <div class="notif-item-msg">${esc(n.message||'')}</div>
+      <div class="notif-item-time">${timeAgo(n.created_at)}</div>
+    </div>
+  `).join('');
+
+  // Update task badge for ws_worker
+  if (currentProfile.role === 'ws_worker') {
+    const { count } = await sb.from('process_steps').select('*', { count: 'exact', head: true })
+      .eq('assigned_to', currentProfile.id).eq('status', 'assigned');
+    const tb = document.getElementById('task-badge');
+    if (tb) { if (count > 0) { tb.style.display = 'flex'; tb.textContent = count; } else tb.style.display = 'none'; }
+  }
+}
+
+async function clickNotif(id, projectId) {
+  await sb.from('notifications').update({ is_read: true }).eq('id', id);
+  await loadNotifications();
+  if (projectId) {
+    toggleNotifPanel();
+    if (currentProfile.role === 'eng_manager') navigateTo('all-projects');
+    else if (currentProfile.role === 'ws_worker') navigateTo('my-tasks');
+    else if (currentProfile.role === 'qc') navigateTo('qc-queue');
+  }
+}
+
+async function markAllRead() {
+  await sb.from('notifications').update({ is_read: true }).eq('user_id', currentProfile.id);
+  await loadNotifications();
+  showToast('อ่านการแจ้งเตือนทั้งหมดแล้ว', 'success');
+}
+
+function toggleNotifPanel() {
+  document.getElementById('notif-panel').classList.toggle('open');
+}
+
+async function notify(userId, title, message, projectId = null) {
+  await sb.from('notifications').insert({ user_id: userId, title, message, project_id: projectId });
+}
+
+async function notifyRole(role, title, message, projectId = null) {
+  const { data: users } = await sb.from('profiles').select('id').eq('role', role);
+  if (!users) return;
+  await Promise.all(users.map(u => notify(u.id, title, message, projectId)));
+}
+
+function setupRealtime() {
+  notifChannel = sb.channel('notifications-' + currentProfile.id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentProfile.id}` },
+      () => loadNotifications())
+    .subscribe();
+}
+
+// ============================================================
+// DASHBOARD (eng_manager)
+// ============================================================
+async function renderDashboard(mc) {
+  const [{ data: projs }, { data: steps }] = await Promise.all([
+    sb.from('projects').select('status,priority'),
+    sb.from('process_steps').select('status')
+  ]);
+  const p = projs || [], s = steps || [];
+  const counts = {
+    pending: p.filter(x => ['pending_eng','pending_executive'].includes(x.status)).length,
+    inProgress: p.filter(x => x.status === 'in_progress').length,
+    pendingQC: p.filter(x => x.status === 'pending_qc').length,
+    done: p.filter(x => x.status === 'completed').length,
+    urgent: p.filter(x => x.priority === 'very_urgent').length,
+  };
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📊 ภาพรวม</div><div class="section-sub">สรุปสถานะงานทั้งหมด</div></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num" style="color:var(--amber)">${counts.pending}</div><div class="stat-label">รออนุมัติ</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--teal)">${counts.inProgress}</div><div class="stat-label">กำลังดำเนินการ</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:purple">${counts.pendingQC}</div><div class="stat-label">รอตรวจ QC</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--green)">${counts.done}</div><div class="stat-label">เสร็จสิ้น</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--red)">${counts.urgent}</div><div class="stat-label">งานเร่งด่วนมาก</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">โปรเจคล่าสุด</span></div>
+      <div id="dash-recent"></div>
+    </div>
+  `;
+  const { data: recent } = await sb.from('projects').select('*').order('created_at', { ascending: false }).limit(10);
+  document.getElementById('dash-recent').innerHTML = renderProjectTable(recent || []);
+}
+
+// ============================================================
+// PENDING APPROVALS (eng_manager)
+// ============================================================
+async function renderPendingApprovals(mc) {
+  const { data } = await sb.from('projects').select('*').eq('status','pending_eng').order('created_at');
+  const rows = data || [];
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📋 ใบคำร้องรออนุมัติ</div></div>
+    <div class="card">
+      ${rows.length === 0 ? '<div class="empty"><div class="empty-icon">✅</div>ไม่มีใบคำร้องรออนุมัติ</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>แผนก</th><th>วันที่ต้องการ</th><th>ความเร่งด่วน</th><th>การดำเนินการ</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td><b>${esc(r.project_no||'-')}</b></td>
+            <td>${esc(r.name)}</td>
+            <td><span class="status s-pending_eng">${r.type === 'part' ? 'ชิ้นส่วน' : 'โปรเจค'}</span></td>
+            <td>${esc(r.requester_name||'-')}</td>
+            <td>${esc(r.requester_dept||'-')}</td>
+            <td>${fmtDate(r.requested_date)}</td>
+            <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
+            <td><button class="btn btn-sm btn-navy" onclick="openApprovalModal('${r.id}')">ดำเนินการ</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+const PRIORITY_LABELS = { normal:'ปกติ', urgent:'เร่งด่วน', very_urgent:'เร่งด่วนมาก' };
+
+async function openApprovalModal(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  if (!p) return;
+  const isProject = p.type === 'project';
+  openModal('อนุมัติใบคำร้อง', `
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">เลขที่</div><div class="detail-value">${esc(p.project_no||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">ชื่องาน</div><div class="detail-value">${esc(p.name)}</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ประเภท</div><div class="detail-value">${p.type==='part'?'ชิ้นส่วน':'โปรเจค'}</div></div>
+      <div class="detail-item"><div class="detail-label">ผู้ขอ</div><div class="detail-value">${esc(p.requester_name||'-')} (${esc(p.requester_dept||'-')})</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">เครื่องที่ติดตั้ง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">วันที่ต้องการ</div><div class="detail-value">${fmtDate(p.requested_date)}</div></div>
+      ${p.has_drawing ? `<div class="detail-item"><div class="detail-label">Drawing No.</div><div class="detail-value">${esc(p.drawing_no||'-')}</div></div>` : `<div class="detail-item"><div class="detail-label">ตัวอย่างชิ้นงาน</div><div class="detail-value">${esc(p.sample_note||'-')}</div></div>`}
+    </div>
+    ${p.notes ? `<div class="detail-item"><div class="detail-label">หมายเหตุ</div><div class="detail-value">${esc(p.notes)}</div></div>` : ''}
+    <hr>
+    <div class="form-group">
+      <label>กำหนดเสร็จ (Deadline) *</label>
+      <input type="date" id="modal-deadline" value="${p.confirmed_deadline||''}">
+    </div>
+    <div class="form-group">
+      <label>ความเร่งด่วน</label>
+      <select id="modal-priority">
+        <option value="normal" ${p.priority==='normal'?'selected':''}>ปกติ</option>
+        <option value="urgent" ${p.priority==='urgent'?'selected':''}>เร่งด่วน</option>
+        <option value="very_urgent" ${p.priority==='very_urgent'?'selected':''}>เร่งด่วนมาก</option>
+      </select>
+    </div>
+  `, [
+    { label: isProject ? '📤 ส่งขอ Approve ผู้บริหาร' : '✅ อนุมัติ', cls: 'btn-primary', action: () => engApprove(p, isProject) },
+    { label: '❌ ปฏิเสธ', cls: 'btn-red', action: () => engReject(p.id) },
+  ]);
+}
+
+async function engApprove(p, escalate) {
+  const deadline = document.getElementById('modal-deadline').value;
+  const priority = document.getElementById('modal-priority').value;
+  if (!deadline) { showToast('กรุณาระบุ deadline', 'error'); return; }
+  const newStatus = escalate ? 'pending_executive' : 'approved';
+  await sb.from('projects').update({ confirmed_deadline: deadline, priority, status: newStatus, approved_by_eng: currentProfile.id }).eq('id', p.id);
+  if (escalate) {
+    await notifyRole('executive', `📋 โปรเจคใหม่รออนุมัติ: ${p.project_no}`, p.name, p.id);
+    showToast('ส่งให้ผู้บริหารอนุมัติแล้ว', 'success');
+  } else {
+    await notify(p.requester_id, `✅ ใบคำร้องได้รับการอนุมัติ: ${p.project_no}`, `Deadline: ${fmtDate(deadline)}`, p.id);
+    await notifyRole('ws_manager', `📋 โปรเจคใหม่รอวาง Plan: ${p.project_no}`, p.name, p.id);
+    showToast('อนุมัติเรียบร้อย', 'success');
+  }
+  closeModal(); navigateTo('pending-approvals');
+}
+
+async function engReject(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  await sb.from('projects').update({ status: 'rejected' }).eq('id', id);
+  if (p) await notify(p.requester_id, `❌ ใบคำร้องถูกปฏิเสธ: ${p.project_no}`, '', id);
+  showToast('ปฏิเสธใบคำร้องแล้ว', 'info'); closeModal(); navigateTo('pending-approvals');
+}
+
+// ============================================================
+// ALL PROJECTS (eng_manager)
+// ============================================================
+async function renderAllProjects(mc) {
+  const { data } = await sb.from('projects').select('*').order('created_at', { ascending: false });
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📁 โปรเจคทั้งหมด</div></div>
+    <div class="card">
+      <div class="card-header">
+        <input type="text" id="proj-search" placeholder="ค้นหาชื่อ/เลขที่..." style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;width:250px" oninput="filterProjects(this.value)">
+      </div>
+      <div id="proj-table">${renderProjectTable(data||[])}</div>
+    </div>
+  `;
+  window._allProjects = data || [];
+}
+
+function filterProjects(q) {
+  const filtered = window._allProjects.filter(p =>
+    (p.project_no||'').toLowerCase().includes(q.toLowerCase()) ||
+    p.name.toLowerCase().includes(q.toLowerCase())
+  );
+  document.getElementById('proj-table').innerHTML = renderProjectTable(filtered);
+}
+
+function renderProjectTable(rows) {
+  if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr></thead>
+    <tbody>${rows.map(r => `
+      <tr>
+        <td><b>${esc(r.project_no||'-')}</b></td>
+        <td>${esc(r.name)}</td>
+        <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
+        <td>${esc(r.requester_name||'-')}</td>
+        <td>${statusBadge(r.status)}</td>
+        <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
+        <td>${fmtDate(r.confirmed_deadline)}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+async function openProjectDetail(id) {
+  const [{ data: p }, { data: steps }] = await Promise.all([
+    sb.from('projects').select('*').eq('id', id).single(),
+    sb.from('process_steps').select('*').eq('project_id', id).order('seq')
+  ]);
+  if (!p) return;
+  const role = currentProfile.role;
+  const canSendQC = role === 'eng_manager' && p.status === 'in_progress' && steps && steps.every(s => s.status === 'confirmed');
+  openModal('รายละเอียดโปรเจค', `
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">เลขที่</div><div class="detail-value">${esc(p.project_no||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">สถานะ</div><div class="detail-value">${statusBadge(p.status)}</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ชื่องาน</div><div class="detail-value">${esc(p.name)}</div></div>
+      <div class="detail-item"><div class="detail-label">ประเภท</div><div class="detail-value">${p.type==='part'?'ชิ้นส่วน':'โปรเจค'}</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ผู้ขอ</div><div class="detail-value">${esc(p.requester_name||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">แผนก</div><div class="detail-value">${esc(p.requester_dept||'-')}</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
+      <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
+    </div>
+    ${steps && steps.length ? `<hr><div class="card-title" style="margin-bottom:10px">ขั้นตอน Process</div>${steps.map(s => `
+      <div class="step-card">
+        <div class="step-card-head">
+          <div class="step-seq">${s.seq}</div>
+          <div><b>${esc(s.step_name)}</b> · ${esc(s.machine||'-')}</div>
+          <div style="margin-left:auto">${statusBadge(s.status)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Part No: ${esc(s.part_no||'-')} · จำนวน: ${s.qty} · ผู้รับผิดชอบ: ${esc(s.assigned_name||'ยังไม่ได้มอบหมาย')}${role!=='ws_worker'?` · เวลา/ชิ้น: ${s.time_per_piece||'-'} นาที`:''}</div>
+      </div>`).join('')}` : ''}
+  `, canSendQC ? [{ label: '🔍 ส่ง QC', cls: 'btn-primary', action: () => sendToQC(p.id) }] : []);
+}
+
+async function sendToQC(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  await sb.from('projects').update({ status: 'pending_qc' }).eq('id', id);
+  await notifyRole('qc', `🔍 งานรอตรวจ QC: ${p.project_no}`, p.name, id);
+  showToast('ส่ง QC แล้ว', 'success'); closeModal(); navigateTo('all-projects');
+}
+
+// ============================================================
+// ASSIGN WORKERS (eng_manager)
+// ============================================================
+async function renderAssignWorkers(mc) {
+  const { data: projs } = await sb.from('projects').select('*').in('status', ['approved','planning','assigning']).order('created_at');
+  const { data: workers } = await sb.from('profiles').select('id,full_name,member_code').eq('role','ws_worker');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">👷 มอบหมายงาน</div></div>
+    ${(projs||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">✅</div>ไม่มีโปรเจครอมอบหมาย</div></div>' :
+    (projs||[]).map(p => `
+      <div class="card" id="assign-card-${p.id}">
+        <div class="card-header">
+          <span class="card-title">${esc(p.project_no||'')} - ${esc(p.name)}</span>
+          ${statusBadge(p.status)}
+        </div>
+        <div id="assign-steps-${p.id}"><div class="spinner"></div></div>
+      </div>
+    `).join('')}
+  `;
+  for (const p of (projs||[])) {
+    await loadAssignSteps(p.id, workers || []);
+  }
+}
+
+async function loadAssignSteps(projId, workers) {
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  const el = document.getElementById('assign-steps-' + projId);
+  if (!steps || steps.length === 0) { el.innerHTML = '<p style="color:var(--muted);font-size:13px">ยังไม่มี Process Plan (รอ WS Manager)</p>'; return; }
+  const allAssigned = steps.every(s => s.assigned_to);
+  el.innerHTML = `
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>#</th><th>ขั้นตอน</th><th>เครื่องจักร</th><th>Part No</th><th>จำนวน</th><th>มอบหมายให้</th><th>สถานะ</th></tr></thead>
+      <tbody>${steps.map(s => `
+        <tr>
+          <td>${s.seq}</td>
+          <td>${esc(s.step_name)}</td>
+          <td>${esc(s.machine||'-')}</td>
+          <td>${esc(s.part_no||'-')}</td>
+          <td>${s.qty}</td>
+          <td>${s.status !== 'pending' && s.status !== 'assigned' ? `<span>${esc(s.assigned_name||'-')}</span>` : `
+            <select id="worker-${s.id}" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:13px" onchange="assignWorker('${s.id}','${projId}',this.value,this.options[this.selectedIndex].text)">
+              <option value="">-- เลือกลูกน้อง --</option>
+              ${workers.map(w => `<option value="${w.id}" ${s.assigned_to===w.id?'selected':''}>${esc(w.full_name)} (${w.member_code||''})</option>`).join('')}
+            </select>`}
+          </td>
+          <td>${statusBadge(s.status)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    ${allAssigned ? `<div style="margin-top:12px"><button class="btn btn-green" onclick="sendToWorkers('${projId}')">📤 ส่งงานให้ลูกน้อง</button></div>` : ''}
+  `;
+}
+
+async function assignWorker(stepId, projId, workerId, workerName) {
+  if (!workerId) return;
+  await sb.from('process_steps').update({ assigned_to: workerId, assigned_name: workerName.split(' (')[0], status: 'assigned' }).eq('id', stepId);
+  await sb.from('projects').update({ status: 'assigning' }).eq('id', projId);
+  const { data: workers } = await sb.from('profiles').select('id,full_name,member_code').eq('role','ws_worker');
+  await loadAssignSteps(projId, workers || []);
+}
+
+async function sendToWorkers(projId) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  if (!steps || steps.some(s => !s.assigned_to)) { showToast('กรุณามอบหมายงานทุกขั้นตอนก่อน', 'error'); return; }
+  await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+  // Notify first step worker
+  const first = steps[0];
+  await notify(first.assigned_to, `🔧 งานใหม่: ${p.project_no}`, `${p.name} - ขั้นตอน ${first.seq}: ${first.step_name}`, projId);
+  showToast('ส่งงานให้ลูกน้องแล้ว', 'success'); navigateTo('assign-workers');
+}
+
+// ============================================================
+// KPI REPORT (eng_manager)
+// ============================================================
+async function renderKPIReport(mc) {
+  const { data: workers } = await sb.from('profiles').select('*').eq('role','ws_worker');
+  mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
+  const kpiData = [];
+  for (const w of (workers||[])) {
+    const [{ count: done }, { count: fails }, { count: late }] = await Promise.all([
+      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_to',w.id).eq('status','confirmed'),
+      sb.from('kpi_records').select('*',{count:'exact',head:true}).eq('worker_id',w.id).eq('record_type','qc_fail'),
+      sb.from('kpi_records').select('*',{count:'exact',head:true}).eq('worker_id',w.id).eq('record_type','late'),
+    ]);
+    const score = Math.max(0, 100 - (fails||0)*10 - (late||0)*5);
+    kpiData.push({ ...w, done: done||0, fails: fails||0, late: late||0, score });
+  }
+  const maxDone = Math.max(...kpiData.map(k => k.done), 1);
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📈 รายงาน KPI ลูกน้อง WS</div></div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>ชื่อ</th><th>รหัส</th><th>งานเสร็จ</th><th>QC Fail</th><th>งานสาย</th><th>คะแนน</th><th>ประสิทธิภาพ</th></tr></thead>
+        <tbody>${kpiData.map(k => `
+          <tr>
+            <td><b>${esc(k.full_name)}</b></td>
+            <td>${esc(k.member_code||'-')}</td>
+            <td>${k.done}</td>
+            <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
+            <td><span style="color:${k.late>0?'var(--amber)':'var(--green)'}">${k.late}</span></td>
+            <td><b style="color:${k.score>=80?'var(--green)':k.score>=60?'var(--amber)':'var(--red)'}">${k.score}</b></td>
+            <td style="min-width:150px">
+              <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${(k.done/maxDone*100).toFixed(0)}%"></div></div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+// ============================================================
+// WS MANAGER - PLAN LIST
+// ============================================================
+async function renderWSPlanList(mc) {
+  const { data } = await sb.from('projects').select('*').eq('status','approved').order('priority').order('created_at');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📝 โปรเจครอวาง Process Plan</div></div>
+    <div class="card">
+      ${(data||[]).length === 0 ? '<div class="empty"><div class="empty-icon">✅</div>ไม่มีโปรเจครอวาง Plan</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ผู้ขอ</th><th>Deadline</th><th>ความเร่งด่วน</th><th></th></tr></thead>
+        <tbody>${(data||[]).map(p => `
+          <tr>
+            <td><b>${esc(p.project_no||'-')}</b></td>
+            <td>${esc(p.name)}</td>
+            <td>${esc(p.requester_name||'-')}</td>
+            <td>${fmtDate(p.confirmed_deadline)}</td>
+            <td><span class="priority-${p.priority}">${PRIORITY_LABELS[p.priority]}</span></td>
+            <td><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">วาง Process Plan</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+async function openPlanModal(projId) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
+  const { data: existing } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  const nextSeq = (existing||[]).length + 1;
+  document.getElementById('modal').classList.add('modal-lg');
+  openModal(`วาง Process Plan: ${p.project_no} - ${p.name}`, `
+    ${(existing||[]).length > 0 ? `
+      <div style="margin-bottom:16px">
+        <b>ขั้นตอนที่มีอยู่แล้ว:</b>
+        ${existing.map(s => `<div class="step-card" style="margin-top:8px">
+          <div class="step-card-head">
+            <div class="step-seq">${s.seq}</div>
+            <div><b>${esc(s.step_name)}</b></div>
+            <button class="btn btn-sm btn-red" style="margin-left:auto" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">เครื่อง: ${esc(s.machine||'-')} · Part No: ${esc(s.part_no||'-')} · เวลา/ชิ้น: ${s.time_per_piece} นาที · จำนวน: ${s.qty}</div>
+        </div>`).join('')}
+      </div><hr>` : ''}
+    <b>เพิ่มขั้นตอนที่ ${nextSeq}:</b>
+    <div class="form-row" style="margin-top:10px">
+      <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส"></div>
+      <div class="form-group"><label>เครื่องจักร</label><input id="ps-machine" placeholder="เช่น CNC001"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Part No.</label><input id="ps-partno" placeholder="Part No."></div>
+      <div class="form-group"><label>เวลาต่อชิ้น (นาที) *</label><input id="ps-time" type="number" min="0.1" step="0.1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>จำนวน *</label><input id="ps-qty" type="number" min="1" value="${p.qty}"></div>
+      <div class="form-group"><label>หมายเหตุ</label><input id="ps-notes" placeholder="หมายเหตุเพิ่มเติม"></div>
+    </div>
+  `, [
+    { label: '➕ เพิ่มขั้นตอน', cls: 'btn-primary', action: () => addStep(projId, nextSeq) },
+    { label: '✅ บันทึก Plan เสร็จแล้ว', cls: 'btn-green', action: () => finishPlan(projId, p) },
+  ]);
+}
+
+async function addStep(projId, seq) {
+  const name = document.getElementById('ps-name').value.trim();
+  const machine = document.getElementById('ps-machine').value.trim();
+  const partno = document.getElementById('ps-partno').value.trim();
+  const time = parseFloat(document.getElementById('ps-time').value);
+  const qty = parseInt(document.getElementById('ps-qty').value);
+  if (!name || !time || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+  await sb.from('process_steps').insert({ project_id: projId, seq, step_name: name, machine, part_no: partno, time_per_piece: time, qty, notes: document.getElementById('ps-notes').value });
+  document.getElementById('modal').classList.remove('modal-lg');
+  showToast(`เพิ่มขั้นตอนที่ ${seq} แล้ว`, 'success'); closeModal();
+  openPlanModal(projId);
+}
+
+async function deleteStep(stepId, projId) {
+  await sb.from('process_steps').delete().eq('id', stepId);
+  // Reorder
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  for (let i = 0; i < (steps||[]).length; i++) {
+    await sb.from('process_steps').update({ seq: i+1 }).eq('id', steps[i].id);
+  }
+  closeModal(); openPlanModal(projId);
+}
+
+async function finishPlan(projId, p) {
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId);
+  if (!steps || steps.length === 0) { showToast('กรุณาเพิ่มขั้นตอนอย่างน้อย 1 ขั้นตอน', 'error'); return; }
+  await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
+  await notifyRole('eng_manager', `⚙️ Process Plan พร้อมแล้ว: ${p.project_no}`, p.name, projId);
+  showToast('บันทึก Process Plan เรียบร้อย', 'success'); closeModal(); navigateTo('ws-plan-list');
+}
+
+// ============================================================
+// WS MANAGER - PROCESS PLANS
+// ============================================================
+async function renderWSProcessPlans(mc) {
+  const { data: projs } = await sb.from('projects').select('*').in('status',['planning','assigning','in_progress','pending_qc']).order('created_at',{ascending:false});
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">⚙️ Process Plans</div></div>
+    ${(projs||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div></div>' :
+    (projs||[]).map(p => `
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">${esc(p.project_no||'')} - ${esc(p.name)}</span>
+          <div style="display:flex;gap:8px;align-items:center">${statusBadge(p.status)}<button class="btn btn-sm btn-ghost" onclick="openPlanModal('${p.id}')">แก้ไข Plan</button></div>
+        </div>
+        <div id="plan-steps-${p.id}"><div class="spinner"></div></div>
+      </div>
+    `).join('')}
+  `;
+  for (const p of (projs||[])) {
+    const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', p.id).order('seq');
+    const el = document.getElementById('plan-steps-' + p.id);
+    if (!steps || !steps.length) { el.innerHTML = '<p style="color:var(--muted)">ยังไม่มีขั้นตอน</p>'; continue; }
+    el.innerHTML = steps.map(s => `
+      <div class="step-card">
+        <div class="step-card-head">
+          <div class="step-seq">${s.seq}</div>
+          <div><b>${esc(s.step_name)}</b> · ${esc(s.machine||'-')}</div>
+          <div style="margin-left:auto">${statusBadge(s.status)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Part No: ${esc(s.part_no||'-')} · จำนวน: ${s.qty} · เวลา/ชิ้น: ${s.time_per_piece} นาที · ลูกน้อง: ${esc(s.assigned_name||'ยังไม่ได้มอบหมาย')}</div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// WS MANAGER - CONFIRM STEPS
+// ============================================================
+async function renderWSConfirmSteps(mc) {
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id)').eq('status','done_by_worker').order('worker_confirmed_at');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">✅ ยืนยันงานลูกน้อง</div></div>
+    <div class="card">
+      ${(steps||[]).length === 0 ? '<div class="empty"><div class="empty-icon">✅</div>ไม่มีงานรอยืนยัน</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน</th><th>ลูกน้อง</th><th>เสร็จเมื่อ</th><th></th></tr></thead>
+        <tbody>${(steps||[]).map(s => `
+          <tr>
+            <td><b>${esc(s.projects?.project_no||'-')}</b><br><small>${esc(s.projects?.name||'-')}</small></td>
+            <td>${s.seq}</td>
+            <td>${esc(s.step_name)}</td>
+            <td>${esc(s.assigned_name||'-')}</td>
+            <td>${timeAgo(s.worker_confirmed_at)}</td>
+            <td><button class="btn btn-sm btn-green" onclick="confirmStep('${s.id}','${s.project_id}')">✅ ยืนยัน</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+async function confirmStep(stepId, projId) {
+  await sb.from('process_steps').update({ status: 'confirmed', manager_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  // Check if all confirmed
+  const { data: allSteps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
+  const allDone = allSteps && allSteps.every(s => s.status === 'confirmed' || s.id === stepId);
+  if (allDone) {
+    await notifyRole('eng_manager', `🎉 ขั้นตอนทั้งหมดเสร็จแล้ว: ${p.project_no}`, 'พร้อมส่ง QC', projId);
+  } else {
+    // Notify next step worker
+    const confirmed = allSteps.filter(s => s.status === 'confirmed' || s.id === stepId);
+    const nextStep = allSteps.find(s => !confirmed.find(c => c.id === s.id));
+    if (nextStep && nextStep.assigned_to) {
+      await notify(nextStep.assigned_to, `🔧 ถึงคิวงานของคุณ: ${p.project_no}`, `ขั้นตอน ${nextStep.seq}: ${nextStep.step_name}`, projId);
+    }
+    await notifyRole('eng_manager', `✅ ยืนยันขั้นตอน ${allSteps.find(s=>s.id===stepId)?.seq||''}: ${p.project_no}`, p.name, projId);
+  }
+  showToast('ยืนยันเสร็จแล้ว', 'success'); navigateTo('ws-confirm-steps');
+}
+
+// ============================================================
+// WS WORKER - MY TASKS
+// ============================================================
+async function renderMyTasks(mc) {
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty)').eq('assigned_to', currentProfile.id).in('status',['assigned','in_progress']).order('seq');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
+    ${(steps||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' :
+    (steps||[]).map(s => {
+      const canWork = s.status === 'assigned' || s.status === 'in_progress';
+      // Check if this is first step or previous step is confirmed
+      return `<div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${esc(s.projects?.project_no||'')} - ${esc(s.projects?.name||'')}</div>
+            <div style="color:var(--muted);font-size:13px">ขั้นตอน ${s.seq}: ${esc(s.step_name)}</div>
+          </div>
+          ${statusBadge(s.status)}
+        </div>
+        <div class="detail-row">
+          <div class="detail-item"><div class="detail-label">เครื่องจักร</div><div class="detail-value">${esc(s.machine||'-')}</div></div>
+          <div class="detail-item"><div class="detail-label">Part No.</div><div class="detail-value">${esc(s.part_no||'-')}</div></div>
+          <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${s.qty} ชิ้น</div></div>
+        </div>
+        ${s.notes ? `<div style="font-size:13px;color:var(--muted)">หมายเหตุ: ${esc(s.notes)}</div>` : ''}
+        <div style="margin-top:12px;display:flex;gap:8px">
+          ${s.status === 'assigned' ? `<button class="btn btn-amber" onclick="startTask('${s.id}')">▶️ เริ่มทำงาน</button>` : ''}
+          ${s.status === 'in_progress' ? `<button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ ยืนยันเสร็จแล้ว</button>` : ''}
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+async function startTask(stepId) {
+  await sb.from('process_steps').update({ status: 'in_progress' }).eq('id', stepId);
+  showToast('เริ่มงานแล้ว', 'info'); navigateTo('my-tasks');
+}
+
+async function completeTask(stepId, projId) {
+  await sb.from('process_steps').update({ status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
+  await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step.seq}: ${step.step_name} โดย ${currentProfile.full_name}`, projId);
+  await sb.from('work_logs').insert({ project_id: projId, step_id: stepId, worker_id: currentProfile.id, action: 'completed' });
+  showToast('ยืนยันงานเสร็จแล้ว', 'success'); navigateTo('my-tasks');
+}
+
+// ============================================================
+// WS WORKER - TASK HISTORY
+// ============================================================
+async function renderTaskHistory(mc) {
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_to', currentProfile.id).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false });
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📜 ประวัติงาน</div></div>
+    <div class="card">
+      ${(steps||[]).length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
+        <tbody>${(steps||[]).map(s => `
+          <tr>
+            <td><b>${esc(s.projects?.project_no||'-')}</b><br><small>${esc(s.projects?.name||'-')}</small></td>
+            <td>${s.seq}</td>
+            <td>${esc(s.step_name)}</td>
+            <td>${statusBadge(s.status)}</td>
+            <td>${fmtDate(s.manager_confirmed_at)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+// ============================================================
+// USER - CREATE REQUEST
+// ============================================================
+async function renderCreateRequest(mc) {
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">➕ สร้างใบคำร้องใหม่</div></div>
+    <div class="card" style="max-width:700px">
+      <div class="form-row">
+        <div class="form-group">
+          <label>ชื่อผู้ขอ</label>
+          <input type="text" value="${esc(currentProfile.full_name)}" readonly style="background:#f8fafc">
+        </div>
+        <div class="form-group">
+          <label>แผนก *</label>
+          <input type="text" id="req-dept" value="${esc(currentProfile.dept||'')}" placeholder="ชื่อแผนก">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ประเภทใบคำร้อง *</label>
+        <div class="radio-group">
+          <label class="radio-label"><input type="radio" name="req-type" value="part" checked> 🔩 ชิ้นส่วน (Part)</label>
+          <label class="radio-label"><input type="radio" name="req-type" value="project"> 📐 โปรเจค (Project)</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ชื่องาน *</label>
+        <input type="text" id="req-name" placeholder="ระบุชื่องาน">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>เครื่องที่จะนำไปติดตั้ง *</label>
+          <input type="text" id="req-machine" placeholder="เช่น เครื่องกลึง CNC-01">
+        </div>
+        <div class="form-group">
+          <label>จำนวนชิ้น *</label>
+          <input type="number" id="req-qty" min="1" value="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>มี Drawing หรือไม่?</label>
+          <div class="radio-group" style="margin-top:6px">
+            <label class="radio-label"><input type="radio" name="req-drawing" value="yes" checked onchange="toggleDrawing(this.value)"> มี Drawing</label>
+            <label class="radio-label"><input type="radio" name="req-drawing" value="no" onchange="toggleDrawing(this.value)"> ไม่มี (มีตัวอย่าง)</label>
+          </div>
+        </div>
+        <div class="form-group" id="drawing-field">
+          <label>Drawing No. / Group No.</label>
+          <input type="text" id="req-drawing-no" placeholder="Drawing No.">
+        </div>
+        <div class="form-group" id="sample-field" style="display:none">
+          <label>ตัวอย่างชิ้นงาน</label>
+          <input type="text" id="req-sample" placeholder="รายละเอียดตัวอย่าง">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>วันที่ต้องการ *</label>
+          <input type="date" id="req-date">
+        </div>
+        <div class="form-group">
+          <label>ความเร่งด่วน</label>
+          <select id="req-priority">
+            <option value="normal">ปกติ</option>
+            <option value="urgent">เร่งด่วน</option>
+            <option value="very_urgent">เร่งด่วนมาก</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>หมายเหตุ</label>
+        <textarea id="req-notes" placeholder="ข้อมูลเพิ่มเติม..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="submitRequest()">📤 ส่งใบคำร้อง</button>
+    </div>
+  `;
+}
+
+function toggleDrawing(val) {
+  document.getElementById('drawing-field').style.display = val === 'yes' ? 'block' : 'none';
+  document.getElementById('sample-field').style.display = val === 'no' ? 'block' : 'none';
+}
+
+async function submitRequest() {
+  const type = document.querySelector('input[name="req-type"]:checked')?.value;
+  const name = document.getElementById('req-name').value.trim();
+  const machine = document.getElementById('req-machine').value.trim();
+  const qty = parseInt(document.getElementById('req-qty').value);
+  const date = document.getElementById('req-date').value;
+  const dept = document.getElementById('req-dept').value.trim();
+  const hasDrawing = document.querySelector('input[name="req-drawing"]:checked')?.value === 'yes';
+  if (!type || !name || !machine || !qty || !date) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+  const payload = {
+    type, name, machine_location: machine, qty, requested_date: date,
+    requester_id: currentProfile.id, requester_name: currentProfile.full_name,
+    requester_dept: dept, has_drawing: hasDrawing,
+    drawing_no: hasDrawing ? document.getElementById('req-drawing-no').value.trim() : null,
+    sample_note: !hasDrawing ? document.getElementById('req-sample').value.trim() : null,
+    priority: document.getElementById('req-priority').value,
+    notes: document.getElementById('req-notes').value.trim(),
+    status: 'pending_eng'
+  };
+  const { data, error } = await sb.from('projects').insert(payload).select().single();
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  await notifyRole('eng_manager', `📋 ใบคำร้องใหม่: ${data.project_no}`, `${name} จาก ${currentProfile.full_name}`, data.id);
+  showToast(`ส่งใบคำร้อง ${data.project_no} แล้ว`, 'success'); navigateTo('my-requests');
+}
+
+// ============================================================
+// USER - MY REQUESTS
+// ============================================================
+async function renderMyRequests(mc) {
+  const { data } = await sb.from('projects').select('*').eq('requester_id', currentProfile.id).order('created_at', { ascending: false });
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📋 ใบคำร้องของฉัน</div></div>
+    <div class="card">
+      ${(data||[]).length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีใบคำร้อง</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>สถานะ</th><th>Deadline</th><th></th></tr></thead>
+        <tbody>${(data||[]).map(p => `
+          <tr>
+            <td><b>${esc(p.project_no||'-')}</b></td>
+            <td>${esc(p.name)}</td>
+            <td>${p.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
+            <td>${statusBadge(p.status)}</td>
+            <td>${fmtDate(p.confirmed_deadline)}</td>
+            <td>
+              <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${p.id}')">ดู</button>
+              ${p.status === 'qc_pass' ? `<button class="btn btn-sm btn-green" onclick="acceptWork('${p.id}')">รับงาน</button>` : ''}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+async function acceptWork(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  await sb.from('projects').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
+  await notifyRole('eng_manager', `✅ ผู้ใช้รับงานแล้ว: ${p.project_no}`, p.name, id);
+  showToast('รับงานเรียบร้อย', 'success'); navigateTo('my-requests');
+}
+
+// ============================================================
+// QC
+// ============================================================
+async function renderQCQueue(mc) {
+  const { data } = await sb.from('projects').select('*').eq('status','pending_qc').order('created_at');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">🔍 รอตรวจ QC</div></div>
+    ${(data||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">✅</div>ไม่มีงานรอตรวจ QC</div></div>' :
+    (data||[]).map(p => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${esc(p.project_no||'')} - ${esc(p.name)}</div>
+            <div style="color:var(--muted);font-size:13px">ผู้ขอ: ${esc(p.requester_name||'-')} · Deadline: ${fmtDate(p.confirmed_deadline)}</div>
+          </div>
+          <button class="btn btn-primary" onclick="openQCModal('${p.id}')">🔍 ตรวจ QC</button>
+        </div>
+      </div>`).join('')}
+  `;
+}
+
+async function openQCModal(projId) {
+  const [{ data: p }, { data: steps }] = await Promise.all([
+    sb.from('projects').select('*').eq('id', projId).single(),
+    sb.from('process_steps').select('*').eq('project_id', projId).order('seq')
+  ]);
+  openModal(`ตรวจ QC: ${p.project_no}`, `
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ชื่องาน</div><div class="detail-value">${esc(p.name)}</div></div>
+      <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>ผลการตรวจ *</label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="qc-result" value="pass" checked onchange="toggleQCFail(this.value)"> ✅ ผ่าน (Pass)</label>
+        <label class="radio-label"><input type="radio" name="qc-result" value="fail" onchange="toggleQCFail(this.value)"> ❌ ไม่ผ่าน (Fail)</label>
+      </div>
+    </div>
+    <div id="qc-fail-section" style="display:none">
+      <div class="form-group">
+        <label>ขั้นตอนที่มีปัญหา *</label>
+        <select id="qc-failed-step">
+          <option value="">-- เลือกขั้นตอน --</option>
+          ${(steps||[]).map(s => `<option value="${s.id}">${s.seq}. ${esc(s.step_name)} (${esc(s.assigned_name||'-')})</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>หมายเหตุ</label>
+      <textarea id="qc-notes" placeholder="บันทึกผล QC..."></textarea>
+    </div>
+  `, [
+    { label: '✅ บันทึกผล QC', cls: 'btn-primary', action: () => submitQC(projId, p) }
+  ]);
+}
+
+function toggleQCFail(val) {
+  document.getElementById('qc-fail-section').style.display = val === 'fail' ? 'block' : 'none';
+}
+
+async function submitQC(projId, p) {
+  const result = document.querySelector('input[name="qc-result"]:checked')?.value;
+  const notes = document.getElementById('qc-notes').value;
+  const failedStepId = result === 'fail' ? document.getElementById('qc-failed-step').value : null;
+  if (result === 'fail' && !failedStepId) { showToast('กรุณาเลือกขั้นตอนที่มีปัญหา', 'error'); return; }
+  await sb.from('qc_logs').insert({ project_id: projId, qc_inspector_id: currentProfile.id, result, failed_step_id: failedStepId || null, notes });
+  if (result === 'pass') {
+    await sb.from('projects').update({ status: 'qc_pass' }).eq('id', projId);
+    await notify(p.requester_id, `🎉 งานผ่าน QC แล้ว: ${p.project_no}`, 'กรุณารับงาน', projId);
+    await notifyRole('eng_manager', `✅ QC ผ่าน: ${p.project_no}`, p.name, projId);
+    showToast('QC ผ่าน!', 'success');
+  } else {
+    const { data: failStep } = await sb.from('process_steps').select('*').eq('id', failedStepId).single();
+    await sb.from('process_steps').update({ status: 'failed_qc' }).eq('id', failedStepId);
+    await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+    if (failStep) {
+      await sb.from('kpi_records').insert({ worker_id: failStep.assigned_to, project_id: projId, step_id: failedStepId, record_type: 'qc_fail', notes });
+      await notify(failStep.assigned_to, `⚠️ QC ไม่ผ่าน - ต้องแก้ไข: ${p.project_no}`, `ขั้นตอน ${failStep.seq}: ${failStep.step_name} - ${notes}`, projId);
+    }
+    await notifyRole('eng_manager', `❌ QC ไม่ผ่าน: ${p.project_no}`, `ขั้นตอน ${failStep?.seq||''}: ${notes}`, projId);
+    showToast('QC ไม่ผ่าน บันทึกแล้ว', 'info');
+  }
+  closeModal(); navigateTo('qc-queue');
+}
+
+async function renderQCHistory(mc) {
+  const { data } = await sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📜 ประวัติ QC</div></div>
+    <div class="card">
+      ${(data||[]).length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติ QC</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>วันที่</th><th>โปรเจค</th><th>ผล</th><th>หมายเหตุ</th></tr></thead>
+        <tbody>${(data||[]).map(q => `
+          <tr>
+            <td>${fmtDate(q.created_at)}</td>
+            <td><b>${esc(q.projects?.project_no||'-')}</b><br><small>${esc(q.projects?.name||'-')}</small></td>
+            <td>${q.result === 'pass' ? '<span class="status s-qc_pass">ผ่าน</span>' : '<span class="status s-rejected">ไม่ผ่าน</span>'}</td>
+            <td>${esc(q.notes||'-')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+// ============================================================
+// EXECUTIVE APPROVALS
+// ============================================================
+async function renderExecApprovals(mc) {
+  const { data } = await sb.from('projects').select('*').eq('status','pending_executive').order('created_at');
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">✍️ รออนุมัติโปรเจค</div></div>
+    ${(data||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">✅</div>ไม่มีโปรเจครออนุมัติ</div></div>' :
+    (data||[]).map(p => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${esc(p.project_no||'')} - ${esc(p.name)}</div>
+            <div style="color:var(--muted);font-size:13px">ผู้ขอ: ${esc(p.requester_name||'-')} (${esc(p.requester_dept||'-')}) · วันที่ต้องการ: ${fmtDate(p.requested_date)}</div>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-item"><div class="detail-label">เครื่องที่ติดตั้ง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
+          <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
+          <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
+          <div class="detail-item"><div class="detail-label">ความเร่งด่วน</div><div class="detail-value"><span class="priority-${p.priority}">${PRIORITY_LABELS[p.priority]}</span></div></div>
+        </div>
+        ${p.notes ? `<div style="font-size:13px;margin-bottom:12px">หมายเหตุ: ${esc(p.notes)}</div>` : ''}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-green" onclick="execApprove('${p.id}')">✅ อนุมัติ</button>
+          <button class="btn btn-red" onclick="execReject('${p.id}')">❌ ปฏิเสธ</button>
+        </div>
+      </div>`).join('')}
+  `;
+}
+
+async function execApprove(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  await sb.from('projects').update({ status: 'approved', approved_by_exec: currentProfile.id }).eq('id', id);
+  await notify(p.requester_id, `✅ โปรเจคได้รับการอนุมัติ: ${p.project_no}`, p.name, id);
+  await notifyRole('eng_manager', `✅ ผู้บริหารอนุมัติ: ${p.project_no}`, p.name, id);
+  await notifyRole('ws_manager', `📋 โปรเจคใหม่รอวาง Plan: ${p.project_no}`, p.name, id);
+  showToast('อนุมัติแล้ว', 'success'); navigateTo('exec-approvals');
+}
+
+async function execReject(id) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
+  await sb.from('projects').update({ status: 'rejected' }).eq('id', id);
+  await notify(p.requester_id, `❌ โปรเจคถูกปฏิเสธ: ${p.project_no}`, '', id);
+  await notifyRole('eng_manager', `❌ ผู้บริหารปฏิเสธ: ${p.project_no}`, p.name, id);
+  showToast('ปฏิเสธแล้ว', 'info'); navigateTo('exec-approvals');
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(title, bodyHtml, buttons = []) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const footer = document.getElementById('modal-footer');
+  footer.innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">ปิด</button>` +
+    buttons.map((b, i) => `<button class="btn ${b.cls}" id="modal-btn-${i}">${b.label}</button>`).join('');
+  buttons.forEach((b, i) => {
+    document.getElementById('modal-btn-' + i).onclick = b.action;
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('modal').classList.remove('modal-lg');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = '.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  try { return new Date(d).toLocaleDateString('th-TH', { year:'numeric', month:'short', day:'numeric' }); }
+  catch { return d; }
+}
+
+function timeAgo(d) {
+  if (!d) return '-';
+  const diff = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'เมื่อกี้';
+  if (mins < 60) return `${mins} นาทีที่แล้ว`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} ชั่วโมงที่แล้ว`;
+  const days = Math.floor(hrs / 24);
+  return `${days} วันที่แล้ว`;
+}
+
+function statusBadge(status) {
+  return `<span class="status s-${status}">${STATUS_LABELS[status] || status}</span>`;
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>
