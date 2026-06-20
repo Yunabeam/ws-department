@@ -207,6 +207,16 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       </div>
       <span class="role-badge" id="role-badge-display">-</span>
     </div>
+    <div id="role-switcher" style="display:none">
+      <select onchange="switchRole(this.value)" style="padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12px;cursor:pointer">
+        <option value="eng_manager">หัวหน้าวิศฯ</option>
+        <option value="ws_manager">หัวหน้า WS</option>
+        <option value="ws_worker">ช่าง WS</option>
+        <option value="user">ผู้ขอ</option>
+        <option value="qc">QC</option>
+        <option value="executive">ผู้บริหาร</option>
+      </select>
+    </div>
     <button class="btn btn-ghost btn-sm" onclick="doLogout()">ออก</button>
   </div>
 
@@ -291,7 +301,8 @@ const STATUS_LABELS = {
 // id ต้องตรงกับ profiles.id ใน Supabase
 // ============================================================
 const USERS_DB = {
-  'admin@ws.com': { password: 'Admin@1234', id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69' }
+  'admin@ws.com': { password: 'Admin@1234', id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69' },
+  'test@ws.com':  { password: 'Test@1234',  id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69', superAdmin: true }
 };
 
 // ============================================================
@@ -370,10 +381,26 @@ async function showApp() {
   if (!currentProfile) { showToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin','error'); return; }
   document.getElementById('user-name-display').textContent = currentProfile.full_name;
   document.getElementById('role-badge-display').textContent = ROLE_LABELS[currentProfile.role] || currentProfile.role;
+  // Show role switcher for super admin
+  const isSuperAdmin = USERS_DB[currentUser.email]?.superAdmin;
+  const switcher = document.getElementById('role-switcher');
+  if (isSuperAdmin) {
+    switcher.style.display = 'block';
+    switcher.querySelector('select').value = currentProfile.role;
+  } else {
+    switcher.style.display = 'none';
+  }
   buildSidebar();
   await loadNotifications();
   setupRealtime();
   refreshTimer = setInterval(() => { loadNotifications(); if (currentPage) navigateTo(currentPage, true); }, 30000);
+  navigateTo(getDefaultPage());
+}
+
+function switchRole(role) {
+  currentProfile = { ...currentProfile, role };
+  document.getElementById('role-badge-display').textContent = ROLE_LABELS[role] || role;
+  buildSidebar();
   navigateTo(getDefaultPage());
 }
 
