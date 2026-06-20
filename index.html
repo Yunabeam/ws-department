@@ -160,6 +160,8 @@ tr:hover td{background:#f8fafc}
 .kpi-bar-fill{height:10px;border-radius:4px;background:var(--teal);transition:.5s}
 /* PAGE HIDE */
 .page{display:none}.page.active{display:block}
+/* WS FILTER ACTIVE */
+.ws-filter.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 /* RADIO GROUP */
 .radio-group{display:flex;gap:12px;flex-wrap:wrap}
 .radio-label{display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;transition:.2s}
@@ -378,7 +380,7 @@ async function showApp() {
 function getDefaultPage() {
   const r = currentProfile.role;
   if (r === 'eng_manager') return 'dashboard';
-  if (r === 'ws_manager') return 'ws-plan-list';
+  if (r === 'ws_manager') return 'ws-status-plan';
   if (r === 'ws_worker') return 'my-tasks';
   if (r === 'user') return 'create-request';
   if (r === 'qc') return 'qc-queue';
@@ -398,9 +400,9 @@ const NAV_ITEMS = {
     { id:'kpi-report', icon:'📈', label:'รายงาน KPI' },
   ],
   ws_manager: [
-    { id:'ws-plan-list', icon:'📝', label:'รอวาง Process Plan' },
-    { id:'ws-process-plans', icon:'⚙️', label:'Process Plans' },
-    { id:'ws-confirm-steps', icon:'✅', label:'ยืนยันงานลูกน้อง' },
+    { id:'ws-status-plan', icon:'📋', label:'สถานะ & วางแผน', badge:'need-plan-badge' },
+    { id:'ws-confirm-steps', icon:'✅', label:'ยืนยันงานช่าง', badge:'confirm-badge' },
+    { id:'ws-gantt', icon:'📅', label:'แผนรายสัปดาห์' },
   ],
   ws_worker: [
     { id:'my-tasks', icon:'🔧', label:'งานของฉัน', badge:'task-badge' },
@@ -460,9 +462,9 @@ async function navigateTo(page, silent = false) {
       case 'all-projects': await renderAllProjects(mc); break;
       case 'assign-workers': await renderAssignWorkers(mc); break;
       case 'kpi-report': await renderKPIReport(mc); break;
-      case 'ws-plan-list': await renderWSPlanList(mc); break;
-      case 'ws-process-plans': await renderWSProcessPlans(mc); break;
+      case 'ws-status-plan': await renderWSStatusPlan(mc); break;
       case 'ws-confirm-steps': await renderWSConfirmSteps(mc); break;
+      case 'ws-gantt': await renderWSGantt(mc); break;
       case 'my-tasks': await renderMyTasks(mc); break;
       case 'task-history': await renderTaskHistory(mc); break;
       case 'create-request': await renderCreateRequest(mc); break;
@@ -877,7 +879,207 @@ async function renderKPIReport(mc) {
 }
 
 // ============================================================
-// WS MANAGER - PLAN LIST
+// WS MANAGER - STATUS & PLAN (NEW)
+// ============================================================
+async function renderWSStatusPlan(mc) {
+  const { data: projs } = await sb.from('projects').select('*')
+    .in('status', ['approved','planning','assigning','in_progress','pending_qc'])
+    .order('priority').order('created_at', { ascending: false });
+  const projects = projs || [];
+
+  // load steps for all projects
+  const stepMap = {};
+  if (projects.length) {
+    const ids = projects.map(p => p.id);
+    const { data: allSteps } = await sb.from('process_steps').select('*').in('project_id', ids).order('seq');
+    (allSteps || []).forEach(s => {
+      if (!stepMap[s.project_id]) stepMap[s.project_id] = [];
+      stepMap[s.project_id].push(s);
+    });
+  }
+
+  const { data: workers } = await sb.from('profiles').select('id,full_name,member_code').eq('role','ws_worker');
+  const workerList = workers || [];
+
+  const needPlan = projects.filter(p => p.status === 'approved' || p.status === 'planning');
+  const inProg   = projects.filter(p => ['assigning','in_progress'].includes(p.status));
+  const waitQC   = projects.filter(p => p.status === 'pending_qc');
+
+  // Update badge
+  const nb = document.getElementById('need-plan-badge');
+  if (nb) { if (needPlan.length) { nb.style.display='flex'; nb.textContent=needPlan.length; } else nb.style.display='none'; }
+
+  mc.innerHTML = `
+    <div class="section-header">
+      <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
+      <div class="section-sub">กดเปิดโปรเจคเพื่อดูสถานะและกำหนดช่าง / วันที่ได้ทันที</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
+    </div>
+    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
+  `;
+  window._wsProjects = projects;
+  window._wsStepMap = stepMap;
+  window._wsWorkers = workerList;
+}
+
+function wsFilter(f, btn) {
+  document.querySelectorAll('.ws-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f);
+}
+
+function renderWSPrjCards(projects, stepMap, workers, filter) {
+  const filtered = projects.filter(p => {
+    if (filter === 'all') return true;
+    if (filter === 'need') return ['approved','planning'].includes(p.status);
+    if (filter === 'wip') return ['assigning','in_progress'].includes(p.status);
+    if (filter === 'qc') return p.status === 'pending_qc';
+    return true;
+  });
+  if (!filtered.length) return '<div class="card"><div class="empty"><div class="empty-icon">📭</div>ไม่มีโปรเจคในหมวดนี้</div></div>';
+  return filtered.map(p => {
+    const steps = stepMap[p.id] || [];
+    const done = steps.filter(s => ['confirmed','done_by_worker'].includes(s.status)).length;
+    const total = steps.length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    const barColor = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--teal)' : '#d1d5db';
+    const statusTag = ['approved','planning'].includes(p.status)
+      ? '<span class="status s-planning">ต้องวางแผน</span>'
+      : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
+      : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
+    const stepsHtml = steps.length ? steps.map(s => {
+      const isDone = ['confirmed','done_by_worker'].includes(s.status);
+      const isLocked = s.status === 'pending' && steps.find(prev => prev.seq === s.seq - 1 && !['confirmed','done_by_worker'].includes(prev.status));
+      const canPlan = !isDone && !isLocked;
+      const rowBg = isDone ? 'background:#f0fdf4' : s.status === 'in_progress' ? 'background:#eff6ff' : isLocked ? 'opacity:.55' : '';
+      const dotColor = isDone ? 'background:var(--green);color:#fff' : s.status==='in_progress' ? 'background:var(--teal);color:#fff' : 'background:#e2e8f0;color:#94a3b8';
+      const dotIcon = isDone ? '✓' : s.status==='in_progress' ? '▶' : isLocked ? '🔒' : s.seq;
+      const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">กำลังทำ</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : `<span class="status s-planning">รอวางแผน</span>`;
+      const planCell = isDone
+        ? `<span style="font-size:12px;color:var(--muted)">${esc(s.assigned_name||'—')}</span>`
+        : s.status==='in_progress'
+        ? `<span style="font-size:12px;color:var(--teal);font-weight:600">${esc(s.assigned_name||'—')}</span>`
+        : isLocked
+        ? `<span style="font-size:12px;color:#94a3b8">—</span>`
+        : `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;max-width:150px" ${s.assigned_to?'':''}
+              onchange="wsAssignWorker('${s.id}','${p.id}',this)">
+              <option value="">— เลือกช่าง —</option>
+              ${workers.map(w=>`<option value="${w.id}" ${s.assigned_to===w.id?'selected':''}>${esc(w.full_name)}</option>`).join('')}
+            </select>
+            ${s.assigned_to ? `<span style="font-size:11px;color:var(--green);font-weight:600">✓ บันทึกแล้ว</span>` : ''}
+           </div>`;
+      return `<div style="display:grid;grid-template-columns:38% 16% 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;${rowBg}">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;${dotColor}">${dotIcon}</div>
+          <div><div style="font-size:13px;font-weight:500">${esc(s.step_name)}</div><div style="font-size:11px;color:var(--muted)">${esc(s.part_no||'—')}</div></div>
+        </div>
+        <div>${stepStatus}</div>
+        <div>${planCell}</div>
+      </div>`;
+    }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
+
+    const allAssigned = steps.length && steps.every(s => ['confirmed','done_by_worker'].includes(s.status) || s.assigned_to);
+    const canSendWorkers = allAssigned && ['approved','planning','assigning'].includes(p.status);
+    const canSendQC = p.status === 'in_progress' && steps.length && steps.every(s => s.status === 'confirmed');
+
+    return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px" id="wsc-${p.id}">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:#fff" onclick="toggleWSCard('${p.id}')">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(p.project_no||'—')} · ${esc(p.group_no||'—')}</div>
+          <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(p.name)}</div>
+          <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+            ${p.priority==='very_urgent'?'<span class="status s-rejected">เร่งด่วนมาก</span>':p.priority==='urgent'?'<span class="status s-done_by_worker">ด่วน</span>':''}
+            ${statusTag}
+            <span class="status" style="background:#f1f5f9;color:var(--muted)">${p.confirmed_deadline?'กำหนดส่ง '+fmtDate(p.confirmed_deadline):'ยังไม่มี deadline'}</span>
+          </div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;min-width:90px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${done}/${total} ขั้นตอน</div>
+          <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:${pct}%;background:${barColor};transition:.3s"></div></div>
+        </div>
+        <div id="chev-${p.id}" style="font-size:14px;color:var(--muted);transition:.2s;flex-shrink:0">⌄</div>
+      </div>
+      <div id="wsbody-${p.id}" style="display:none;border-top:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:38% 16% 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
+          <span>ขั้นตอน</span><span>สถานะ</span><span>ช่างผู้รับผิดชอบ</span>
+        </div>
+        ${stepsHtml}
+        ${!steps.length ? `<div style="padding:10px 14px"><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">➕ วาง Process Plan</button></div>` : ''}
+        ${steps.length && ['approved','planning'].includes(p.status) ? `<div style="padding:10px 14px;border-top:1px solid var(--border)"><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">✏️ แก้ไข Process Plan</button></div>` : ''}
+        ${canSendWorkers ? `<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px"><button class="btn btn-sm btn-green" onclick="wsSendToWorkers('${p.id}')">📤 ส่งงานให้ช่าง</button></div>` : ''}
+        ${canSendQC ? `<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px"><button class="btn btn-sm btn-primary" onclick="sendToQC('${p.id}')">🔍 ส่ง QC</button></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleWSCard(id) {
+  const body = document.getElementById('wsbody-' + id);
+  const chev = document.getElementById('chev-' + id);
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+async function wsAssignWorker(stepId, projId, sel) {
+  const workerId = sel.value;
+  const workerName = sel.options[sel.selectedIndex].text;
+  if (!workerId) return;
+  await sb.from('process_steps').update({ assigned_to: workerId, assigned_name: workerName, status: 'assigned' }).eq('id', stepId);
+  await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
+  showToast('กำหนดช่างแล้ว', 'success');
+  navigateTo('ws-status-plan', true);
+  setTimeout(() => { navigateTo('ws-status-plan'); }, 100);
+}
+
+async function wsSendToWorkers(projId) {
+  const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
+  if (!steps || steps.some(s => !s.assigned_to)) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
+  await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+  const first = steps[0];
+  await notify(first.assigned_to, `🔧 งานใหม่: ${p.project_no}`, `${p.name} - ขั้นตอน ${first.seq}: ${first.step_name}`, projId);
+  showToast('ส่งงานให้ช่างแล้ว', 'success');
+  navigateTo('ws-status-plan');
+}
+
+// ============================================================
+// WS MANAGER - GANTT
+// ============================================================
+async function renderWSGantt(mc) {
+  const { data: steps } = await sb.from('process_steps')
+    .select('*,projects(project_no,name,confirmed_deadline,status)')
+    .in('status', ['assigned','in_progress','confirmed','done_by_worker'])
+    .order('seq');
+  const rows = steps || [];
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📅 แผนงานรายสัปดาห์</div><div class="section-sub">ภาพรวมงานที่มอบหมายแล้ว</div></div>
+    <div class="card">
+      ${rows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีงานที่วางแผนแล้ว</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>โปรเจค</th><th>ขั้นตอน</th><th>ช่าง</th><th>เครื่องจักร</th><th>สถานะ</th></tr></thead>
+        <tbody>${rows.map(s => `
+          <tr>
+            <td><b>${esc(s.projects?.project_no||'—')}</b><br><small style="color:var(--muted)">${esc(s.projects?.name||'—')}</small></td>
+            <td>${s.seq}. ${esc(s.step_name)}</td>
+            <td>${esc(s.assigned_name||'—')}</td>
+            <td>${esc(s.machine||'—')}</td>
+            <td>${statusBadge(s.status)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+// ============================================================
+// WS MANAGER - PLAN LIST (LEGACY - kept for openPlanModal)
 // ============================================================
 async function renderWSPlanList(mc) {
   const { data } = await sb.from('projects').select('*').eq('status','approved').order('priority').order('created_at');
@@ -967,7 +1169,7 @@ async function finishPlan(projId, p) {
   if (!steps || steps.length === 0) { showToast('กรุณาเพิ่มขั้นตอนอย่างน้อย 1 ขั้นตอน', 'error'); return; }
   await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
   await notifyRole('eng_manager', `⚙️ Process Plan พร้อมแล้ว: ${p.project_no}`, p.name, projId);
-  showToast('บันทึก Process Plan เรียบร้อย', 'success'); closeModal(); navigateTo('ws-plan-list');
+  showToast('บันทึก Process Plan เรียบร้อย', 'success'); closeModal(); navigateTo('ws-status-plan');
 }
 
 // ============================================================
@@ -1009,6 +1211,9 @@ async function renderWSProcessPlans(mc) {
 // ============================================================
 async function renderWSConfirmSteps(mc) {
   const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id)').eq('status','done_by_worker').order('worker_confirmed_at');
+  const count = (steps||[]).length;
+  const cb = document.getElementById('confirm-badge');
+  if (cb) { if (count > 0) { cb.style.display='flex'; cb.textContent=count; } else cb.style.display='none'; }
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">✅ ยืนยันงานลูกน้อง</div></div>
     <div class="card">
