@@ -717,19 +717,23 @@ async function openApprovalModal(id) {
       <div class="detail-item"><div class="detail-label">ชื่องาน</div><div class="detail-value">${esc(p.name)}</div></div>
     </div>
     <div class="detail-row">
-      <div class="detail-item"><div class="detail-label">ประเภท</div><div class="detail-value">${p.type==='part'?'ชิ้นส่วน':'โปรเจค'}</div></div>
       <div class="detail-item"><div class="detail-label">ผู้ขอ</div><div class="detail-value">${esc(p.requester_name||'-')} (${esc(p.requester_dept||'-')})</div></div>
+      <div class="detail-item"><div class="detail-label">ใช้กับเครื่อง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
     </div>
     <div class="detail-row">
-      <div class="detail-item"><div class="detail-label">เครื่องที่ติดตั้ง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
       <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
-    </div>
-    <div class="detail-row">
       <div class="detail-item"><div class="detail-label">วันที่ต้องการ</div><div class="detail-value">${fmtDate(p.requested_date)}</div></div>
       ${p.has_drawing ? `<div class="detail-item"><div class="detail-label">Drawing No.</div><div class="detail-value">${esc(p.drawing_no||'-')}</div></div>` : `<div class="detail-item"><div class="detail-label">ตัวอย่างชิ้นงาน</div><div class="detail-value">${esc(p.sample_note||'-')}</div></div>`}
     </div>
     ${p.notes ? `<div class="detail-item"><div class="detail-label">หมายเหตุ</div><div class="detail-value">${esc(p.notes)}</div></div>` : ''}
     <hr>
+    <div class="form-group">
+      <label>ประเภทใบคำร้อง *</label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="modal-type" value="part" ${p.type!=='project'?'checked':''}> 🔩 ชิ้นส่วน (Part)</label>
+        <label class="radio-label"><input type="radio" name="modal-type" value="project" ${p.type==='project'?'checked':''}> 📐 โปรเจค (Project)</label>
+      </div>
+    </div>
     <div class="form-group">
       <label>กำหนดเสร็จ (Deadline) *</label>
       <input type="date" id="modal-deadline" value="${p.confirmed_deadline||''}">
@@ -743,17 +747,19 @@ async function openApprovalModal(id) {
       </select>
     </div>
   `, [
-    { label: isProject ? '📤 ส่งขอ Approve ผู้บริหาร' : '✅ อนุมัติ', cls: 'btn-primary', action: () => engApprove(p, isProject) },
+    { label: '✅ อนุมัติ / ส่งผู้บริหาร', cls: 'btn-primary', action: () => engApprove(p) },
     { label: '❌ ปฏิเสธ', cls: 'btn-red', action: () => engReject(p.id) },
   ]);
 }
 
-async function engApprove(p, escalate) {
+async function engApprove(p) {
   const deadline = document.getElementById('modal-deadline').value;
   const priority = document.getElementById('modal-priority').value;
+  const type = document.querySelector('input[name="modal-type"]:checked')?.value || 'part';
+  const escalate = type === 'project';
   if (!deadline) { showToast('กรุณาระบุ deadline', 'error'); return; }
   const newStatus = escalate ? 'pending_executive' : 'approved';
-  await sb.from('projects').update({ confirmed_deadline: deadline, priority, status: newStatus, approved_by_eng: currentProfile.id }).eq('id', p.id);
+  await sb.from('projects').update({ confirmed_deadline: deadline, priority, type, status: newStatus, approved_by_eng: currentProfile.id }).eq('id', p.id);
   if (escalate) {
     await notifyRole('executive', `📋 โปรเจคใหม่รออนุมัติ: ${p.project_no}`, p.name, p.id);
     showToast('ส่งให้ผู้บริหารอนุมัติแล้ว', 'success');
