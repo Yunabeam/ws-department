@@ -287,6 +287,65 @@ let sidebarOpen = false;
 const WS_WORKERS = ['เรืองศิลป์','พิพัฒน์','ทศพร','ทองยศ','โกไซ','ศรันย์','วีระ'];
 const WS_MACHINES = ['กลึง1','กลึง2','กลึง3','มิลลิ่ง','คว้าน','กระทุ้ง','ไส','เจียร์เล็ก','เจียร์ใหญ่','CNC','เจียรโรเตอร์รี่','เจียร์กลม','เจียรกลม1','เจียร์กลม2','สว่าน','สว่านเจาะ','เลื่อย'];
 
+function getWorkerList() {
+  try { const c = localStorage.getItem('ws_workers'); return c ? JSON.parse(c) : [...WS_WORKERS]; } catch { return [...WS_WORKERS]; }
+}
+function getMachineList() {
+  try { const c = localStorage.getItem('ws_machines'); return c ? JSON.parse(c) : [...WS_MACHINES]; } catch { return [...WS_MACHINES]; }
+}
+function saveWorkerList(list) { localStorage.setItem('ws_workers', JSON.stringify(list)); }
+function saveMachineList(list) { localStorage.setItem('ws_machines', JSON.stringify(list)); }
+
+function openManageListModal(type) {
+  const isMachine = type === 'machine';
+  const list = isMachine ? getMachineList() : getWorkerList();
+  const title = isMachine ? '⚙️ จัดการรายชื่อเครื่องจักร' : '👷 จัดการรายชื่อช่าง';
+  openModal(title, `
+    <div id="manage-list">
+      ${list.map((item,i) => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input value="${esc(item)}" id="ml-${i}" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+        <button class="btn btn-sm btn-red" onclick="removeListItem(${i},'${type}')">ลบ</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="ml-new" placeholder="เพิ่มรายการใหม่..." style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+        <button class="btn btn-sm btn-primary" onclick="addListItem('${type}')">➕ เพิ่ม</button>
+      </div>
+    </div>
+  `, [{ label: '💾 บันทึก', cls: 'btn-green', action: () => saveListChanges(type, list.length) }]);
+}
+function addListItem(type) {
+  const newVal = document.getElementById('ml-new').value.trim();
+  if (!newVal) return;
+  const list = type === 'machine' ? getMachineList() : getWorkerList();
+  list.push(newVal);
+  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  closeModal(); openManageListModal(type);
+}
+function removeListItem(i, type) {
+  const list = type === 'machine' ? getMachineList() : getWorkerList();
+  list.splice(i, 1);
+  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  closeModal(); openManageListModal(type);
+}
+function saveListChanges(type, count) {
+  const list = [];
+  for (let i = 0; i < count; i++) {
+    const el = document.getElementById('ml-' + i);
+    if (el && el.value.trim()) list.push(el.value.trim());
+  }
+  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  showToast('บันทึกแล้ว', 'success'); closeModal();
+}
+
+async function getWorkerAllocatedHours(workerName) {
+  const { data: steps } = await sb.from('process_steps')
+    .select('time_per_piece,qty').eq('assigned_name', workerName)
+    .in('status', ['assigned','in_progress','pending']);
+  let mins = 0;
+  for (const s of (steps||[])) { if (s.time_per_piece && s.qty) mins += s.time_per_piece * s.qty; }
+  return (mins / 60).toFixed(1);
+}
+
 const ROLE_LABELS = {
   user: 'ผู้ใช้งาน', eng_manager: 'หัวหน้าวิศวกรรม',
   ws_manager: 'หัวหน้า WS', ws_worker: 'ลูกน้อง WS',
@@ -873,31 +932,28 @@ async function sendToWorkers(projId) {
 // KPI REPORT (eng_manager)
 // ============================================================
 async function renderKPIReport(mc) {
-  const { data: workers } = await sb.from('profiles').select('*').eq('role','ws_worker');
-  mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
+  mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI ลูกน้อง WS</div></div><div class="card"><div class="spinner"></div></div>`;
+  const workers = getWorkerList();
   const kpiData = [];
-  for (const w of (workers||[])) {
-    const [{ count: done }, { count: fails }, { count: late }] = await Promise.all([
-      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_to',w.id).eq('status','confirmed'),
-      sb.from('kpi_records').select('*',{count:'exact',head:true}).eq('worker_id',w.id).eq('record_type','qc_fail'),
-      sb.from('kpi_records').select('*',{count:'exact',head:true}).eq('worker_id',w.id).eq('record_type','late'),
+  for (const workerName of workers) {
+    const [{ count: done }, { count: fails }] = await Promise.all([
+      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_name',workerName).eq('status','confirmed'),
+      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_name',workerName).eq('status','failed_qc'),
     ]);
-    const score = Math.max(0, 100 - (fails||0)*10 - (late||0)*5);
-    kpiData.push({ ...w, done: done||0, fails: fails||0, late: late||0, score });
+    const score = Math.max(0, 100 - (fails||0)*10);
+    kpiData.push({ name: workerName, done: done||0, fails: fails||0, score });
   }
   const maxDone = Math.max(...kpiData.map(k => k.done), 1);
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📈 รายงาน KPI ลูกน้อง WS</div></div>
     <div class="card">
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>รหัส</th><th>งานเสร็จ</th><th>QC Fail</th><th>งานสาย</th><th>คะแนน</th><th>ประสิทธิภาพ</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>คะแนน</th><th>ประสิทธิภาพ</th></tr></thead>
         <tbody>${kpiData.map(k => `
           <tr>
-            <td><b>${esc(k.full_name)}</b></td>
-            <td>${esc(k.member_code||'-')}</td>
+            <td><b>${esc(k.name)}</b></td>
             <td>${k.done}</td>
             <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
-            <td><span style="color:${k.late>0?'var(--amber)':'var(--green)'}">${k.late}</span></td>
             <td><b style="color:${k.score>=80?'var(--green)':k.score>=60?'var(--amber)':'var(--red)'}">${k.score}</b></td>
             <td style="min-width:150px">
               <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${(k.done/maxDone*100).toFixed(0)}%"></div></div>
@@ -1021,8 +1077,8 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const canSendQC = allDoneOrConfirmed && p.status !== 'pending_qc';
 
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px" id="wsc-${p.id}">
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:#fff" onclick="toggleWSCard('${p.id}')">
-        <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleWSCard('${p.id}')">
           <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(p.project_no||'—')} · ${esc(p.group_no||'—')}</div>
           <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(p.name)}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
@@ -1031,11 +1087,14 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
             <span class="status" style="background:#f1f5f9;color:var(--muted)">${p.confirmed_deadline?'กำหนดส่ง '+fmtDate(p.confirmed_deadline):'ยังไม่มี deadline'}</span>
           </div>
         </div>
-        <div style="flex-shrink:0;text-align:right;min-width:90px">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${done}/${total} ขั้นตอน</div>
-          <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:${pct}%;background:${barColor};transition:.3s"></div></div>
+        <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          ${canSendQC ? `<button class="btn btn-sm btn-primary" onclick="sendToQC('${p.id}')">🔍 ส่ง QC</button>` : ''}
+          <div style="text-align:right;min-width:90px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${done}/${total} ขั้นตอน</div>
+            <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:${pct}%;background:${barColor};transition:.3s"></div></div>
+          </div>
         </div>
-        <div id="chev-${p.id}" style="font-size:14px;color:var(--muted);transition:.2s;flex-shrink:0">⌄</div>
+        <div id="chev-${p.id}" style="font-size:14px;color:var(--muted);transition:.2s;flex-shrink:0;cursor:pointer" onclick="toggleWSCard('${p.id}')">⌄</div>
       </div>
       <div id="wsbody-${p.id}" style="display:none;border-top:1px solid var(--border)">
         <div style="display:grid;grid-template-columns:38% 16% 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
@@ -1070,8 +1129,15 @@ async function wsAssignWorker(stepId, projId, sel) {
   if (!workerName) return;
   await sb.from('process_steps').update({ assigned_name: workerName, status: 'assigned' }).eq('id', stepId);
   await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
-  showToast('กำหนดช่างแล้ว', 'success');
-  setTimeout(() => navigateTo('ws-status-plan'), 100);
+  const hrs = await getWorkerAllocatedHours(workerName);
+  if (parseFloat(hrs) >= 8) {
+    showToast(`⚠️ ${workerName} มีงานวางแผนแล้ว ${hrs} ชม. — เกิน 8 ชม./วัน`, 'error');
+  } else if (parseFloat(hrs) >= 6) {
+    showToast(`กำหนดช่างแล้ว · ${workerName} มีงาน ${hrs} ชม. แล้ว`, 'info');
+  } else {
+    showToast('กำหนดช่างแล้ว', 'success');
+  }
+  setTimeout(() => navigateTo('ws-status-plan'), 300);
 }
 
 async function wsSendToWorkers(projId) {
@@ -1148,6 +1214,8 @@ async function openPlanModal(projId) {
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: existing } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   const nextSeq = (existing||[]).length + 1;
+  const workers = getWorkerList();
+  const machines = getMachineList();
   document.getElementById('modal').classList.add('modal-lg');
   openModal(`วาง Process Plan: ${p.project_no} - ${p.name}`, `
     ${(existing||[]).length > 0 ? `
@@ -1159,21 +1227,38 @@ async function openPlanModal(projId) {
             <div><b>${esc(s.step_name)}</b></div>
             <button class="btn btn-sm btn-red" style="margin-left:auto" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>
           </div>
-          <div style="font-size:12px;color:var(--muted)">เครื่อง: ${esc(s.machine||'-')} · Part No: ${esc(s.part_no||'-')} · เวลา/ชิ้น: ${s.time_per_piece} นาที · จำนวน: ${s.qty}</div>
+          <div style="font-size:12px;color:var(--muted)">เครื่อง: ${esc(s.machine||'-')} · ช่าง: ${esc(s.assigned_name||'-')} · Part No: ${esc(s.part_no||'-')} · เวลา/ชิ้น: ${s.time_per_piece||'-'} นาที · จำนวน: ${s.qty}</div>
         </div>`).join('')}
       </div><hr>` : ''}
     <b>เพิ่มขั้นตอนที่ ${nextSeq}:</b>
     <div class="form-row" style="margin-top:10px">
       <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส"></div>
-      <div class="form-group"><label>เครื่องจักร</label>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          เครื่องจักร
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('machine')">⚙️ จัดการ</button>
+        </label>
         <select id="ps-machine" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
           <option value="">— เลือกเครื่องจักร —</option>
-          ${WS_MACHINES.map(m=>`<option value="${m}">${m}</option>`).join('')}
+          ${machines.map(m=>`<option value="${m}">${m}</option>`).join('')}
         </select>
       </div>
     </div>
     <div class="form-row">
+      <div class="form-group">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          ช่างผู้รับผิดชอบ
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('worker')">⚙️ จัดการ</button>
+        </label>
+        <select id="ps-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" onchange="showWorkerHours(this.value)">
+          <option value="">— เลือกช่าง —</option>
+          ${workers.map(w=>`<option value="${w}">${w}</option>`).join('')}
+        </select>
+        <div id="ps-worker-hours" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+      </div>
       <div class="form-group"><label>Part No.</label><input id="ps-partno" placeholder="Part No."></div>
+    </div>
+    <div class="form-row">
       <div class="form-group">
         <label>เวลาต่อชิ้น (นาที)</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
@@ -1183,15 +1268,23 @@ async function openPlanModal(projId) {
         </div>
         <input id="ps-time" type="number" min="0.1" step="0.1" style="margin-top:6px" placeholder="ระบุเวลา (นาที)">
       </div>
-    </div>
-    <div class="form-row">
       <div class="form-group"><label>จำนวน *</label><input id="ps-qty" type="number" min="1" value="${p.qty}"></div>
-      <div class="form-group"><label>หมายเหตุ</label><input id="ps-notes" placeholder="หมายเหตุเพิ่มเติม"></div>
     </div>
+    <div class="form-group"><label>หมายเหตุ</label><input id="ps-notes" placeholder="หมายเหตุเพิ่มเติม"></div>
   `, [
     { label: '➕ เพิ่มขั้นตอน', cls: 'btn-primary', action: () => addStep(projId, nextSeq) },
     { label: '✅ บันทึก Plan เสร็จแล้ว', cls: 'btn-green', action: () => finishPlan(projId, p) },
   ]);
+}
+
+async function showWorkerHours(workerName) {
+  if (!workerName) { document.getElementById('ps-worker-hours').textContent = ''; return; }
+  const hrs = await getWorkerAllocatedHours(workerName);
+  const el = document.getElementById('ps-worker-hours');
+  if (!el) return;
+  const color = hrs >= 8 ? 'var(--red)' : hrs >= 6 ? 'var(--amber)' : 'var(--green)';
+  el.innerHTML = `<span style="color:${color}">📊 ${workerName} มีงานวางแผนแล้ว ${hrs} ชม. (วันทำงาน 8 ชม.)</span>`;
+  if (hrs >= 8) el.innerHTML += ` <b style="color:var(--red)">⚠️ เต็มแล้ว!</b>`;
 }
 
 function toggleOutsource(checked) {
@@ -1211,6 +1304,7 @@ async function addStep(projId, seq) {
   const name = document.getElementById('ps-name').value.trim();
   const machine = document.getElementById('ps-machine').value.trim();
   const partno = document.getElementById('ps-partno').value.trim();
+  const workerName = document.getElementById('ps-worker').value.trim();
   const isOutsource = document.getElementById('ps-outsource').checked;
   const time = isOutsource ? null : parseFloat(document.getElementById('ps-time').value);
   const qty = parseInt(document.getElementById('ps-qty').value);
@@ -1221,6 +1315,8 @@ async function addStep(projId, seq) {
     project_id: projId, seq, step_name: name,
     machine: isOutsource ? 'ส่งออก (จัดซื้อ)' : machine,
     part_no: partno, time_per_piece: time, qty,
+    assigned_name: isOutsource ? null : (workerName || null),
+    status: (!isOutsource && workerName) ? 'assigned' : 'pending',
     notes: isOutsource ? (notes ? notes + ' [Outsource]' : '[Outsource]') : notes
   });
   document.getElementById('modal').classList.remove('modal-lg');
@@ -1333,33 +1429,53 @@ async function confirmStep(stepId, projId) {
 // WS WORKER - MY TASKS
 // ============================================================
 async function renderMyTasks(mc) {
-  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty)').in('status',['assigned','in_progress']).order('seq');
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).order('seq');
+  const active = (steps||[]).filter(s => ['assigned','in_progress'].includes(s.status));
+  const waiting = (steps||[]).filter(s => s.status === 'done_by_worker');
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
-    ${(steps||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' :
-    (steps||[]).map(s => {
-      const canWork = s.status === 'assigned' || s.status === 'in_progress';
-      // Check if this is first step or previous step is confirmed
-      return `<div class="card">
+    ${active.length === 0 && waiting.length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' : ''}
+    ${active.map(s => `<div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${esc(s.projects?.project_no||'')} - ${esc(s.projects?.name||'')}</div>
+          <div style="color:var(--muted);font-size:13px">
+            ขั้นตอน ${s.seq}: ${esc(s.step_name)}
+            ${s.projects?.group_no ? ` · Group No: <b>${esc(s.projects.group_no)}</b>` : ''}
+          </div>
+        </div>
+        ${statusBadge(s.status)}
+      </div>
+      <div class="detail-row">
+        <div class="detail-item"><div class="detail-label">เครื่องจักร</div><div class="detail-value">${esc(s.machine||'-')}</div></div>
+        <div class="detail-item"><div class="detail-label">Part No.</div><div class="detail-value">${esc(s.part_no||'-')}</div></div>
+        <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${s.qty} ชิ้น</div></div>
+      </div>
+      ${s.notes ? `<div style="font-size:13px;color:var(--muted)">หมายเหตุ: ${esc(s.notes)}</div>` : ''}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        ${s.status === 'assigned' ? `<button class="btn btn-amber" onclick="startTask('${s.id}')">▶️ เริ่มทำงาน</button>` : ''}
+        ${s.status === 'in_progress' ? `<button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ ยืนยันเสร็จแล้ว</button>` : ''}
+      </div>
+    </div>`).join('')}
+    ${waiting.length > 0 ? `
+      <div style="margin-top:8px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">⏳ รอหัวหน้า WS ยืนยัน</div>
+      ${waiting.map(s => `<div class="card" style="border-left:4px solid var(--amber);opacity:.85">
         <div class="card-header">
           <div>
             <div class="card-title">${esc(s.projects?.project_no||'')} - ${esc(s.projects?.name||'')}</div>
-            <div style="color:var(--muted);font-size:13px">ขั้นตอน ${s.seq}: ${esc(s.step_name)}</div>
+            <div style="color:var(--muted);font-size:13px">
+              ขั้นตอน ${s.seq}: ${esc(s.step_name)}
+              ${s.projects?.group_no ? ` · Group No: <b>${esc(s.projects.group_no)}</b>` : ''}
+            </div>
           </div>
-          ${statusBadge(s.status)}
+          <span class="status s-done_by_worker">รอยืนยัน</span>
         </div>
         <div class="detail-row">
           <div class="detail-item"><div class="detail-label">เครื่องจักร</div><div class="detail-value">${esc(s.machine||'-')}</div></div>
           <div class="detail-item"><div class="detail-label">Part No.</div><div class="detail-value">${esc(s.part_no||'-')}</div></div>
           <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${s.qty} ชิ้น</div></div>
         </div>
-        ${s.notes ? `<div style="font-size:13px;color:var(--muted)">หมายเหตุ: ${esc(s.notes)}</div>` : ''}
-        <div style="margin-top:12px;display:flex;gap:8px">
-          ${s.status === 'assigned' ? `<button class="btn btn-amber" onclick="startTask('${s.id}')">▶️ เริ่มทำงาน</button>` : ''}
-          ${s.status === 'in_progress' ? `<button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ ยืนยันเสร็จแล้ว</button>` : ''}
-        </div>
-      </div>`;
-    }).join('')}
+      </div>`).join('')}` : ''}
   `;
 }
 
@@ -1406,78 +1522,88 @@ async function renderTaskHistory(mc) {
 // USER - CREATE REQUEST
 // ============================================================
 async function renderCreateRequest(mc) {
+  const draft = (() => { try { return JSON.parse(localStorage.getItem('req_draft')||'{}'); } catch { return {}; } })();
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">➕ สร้างใบคำร้องใหม่</div></div>
     <div class="card" style="max-width:700px">
       <div class="form-row">
         <div class="form-group">
-          <label>ชื่อผู้ขอ</label>
-          <input type="text" value="${esc(currentProfile.full_name)}" readonly style="background:#f8fafc">
+          <label>ชื่อผู้ขอ *</label>
+          <input type="text" id="req-requester" value="${esc(draft.requester ?? currentProfile.full_name)}" placeholder="ชื่อผู้ขอ" oninput="saveReqDraft()">
         </div>
         <div class="form-group">
-          <label>แผนก *</label>
-          <input type="text" id="req-dept" value="${esc(currentProfile.dept||'')}" placeholder="ชื่อแผนก">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>ประเภทใบคำร้อง *</label>
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="req-type" value="part" checked> 🔩 ชิ้นส่วน (Part)</label>
-          <label class="radio-label"><input type="radio" name="req-type" value="project"> 📐 โปรเจค (Project)</label>
+          <label>แผนก</label>
+          <input type="text" id="req-dept" value="${esc(draft.dept ?? currentProfile.dept ?? '')}" placeholder="ชื่อแผนก" oninput="saveReqDraft()">
         </div>
       </div>
       <div class="form-group">
         <label>ชื่องาน *</label>
-        <input type="text" id="req-name" placeholder="ระบุชื่องาน">
+        <input type="text" id="req-name" value="${esc(draft.name||'')}" placeholder="ระบุชื่องาน" oninput="saveReqDraft()">
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>เครื่องที่จะนำไปติดตั้ง *</label>
-          <input type="text" id="req-machine" placeholder="เช่น เครื่องกลึง CNC-01">
+          <label>ใช้กับเครื่อง *</label>
+          <input type="text" id="req-machine" value="${esc(draft.machine||'')}" placeholder="เช่น เครื่องกลึง CNC-01" oninput="saveReqDraft()">
         </div>
         <div class="form-group">
           <label>จำนวนชิ้น *</label>
-          <input type="number" id="req-qty" min="1" value="1">
+          <input type="number" id="req-qty" min="1" value="${draft.qty||1}" oninput="saveReqDraft()">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>มี Drawing หรือไม่?</label>
           <div class="radio-group" style="margin-top:6px">
-            <label class="radio-label"><input type="radio" name="req-drawing" value="yes" checked onchange="toggleDrawing(this.value)"> มี Drawing</label>
-            <label class="radio-label"><input type="radio" name="req-drawing" value="no" onchange="toggleDrawing(this.value)"> ไม่มี (มีตัวอย่าง)</label>
+            <label class="radio-label"><input type="radio" name="req-drawing" value="yes" ${(draft.drawing||'yes')==='yes'?'checked':''} onchange="toggleDrawing(this.value);saveReqDraft()"> มี Drawing</label>
+            <label class="radio-label"><input type="radio" name="req-drawing" value="no" ${draft.drawing==='no'?'checked':''} onchange="toggleDrawing(this.value);saveReqDraft()"> ไม่มี (มีตัวอย่าง)</label>
           </div>
         </div>
-        <div class="form-group" id="drawing-field">
+        <div class="form-group" id="drawing-field" style="${draft.drawing==='no'?'display:none':''}">
           <label>Drawing No. / Group No.</label>
-          <input type="text" id="req-drawing-no" placeholder="Drawing No.">
+          <input type="text" id="req-drawing-no" value="${esc(draft.drawingNo||'')}" placeholder="Drawing No." oninput="saveReqDraft()">
         </div>
-        <div class="form-group" id="sample-field" style="display:none">
+        <div class="form-group" id="sample-field" style="${draft.drawing==='no'?'':'display:none'}">
           <label>ตัวอย่างชิ้นงาน</label>
-          <input type="text" id="req-sample" placeholder="รายละเอียดตัวอย่าง">
+          <input type="text" id="req-sample" value="${esc(draft.sample||'')}" placeholder="รายละเอียดตัวอย่าง" oninput="saveReqDraft()">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>วันที่ต้องการ *</label>
-          <input type="date" id="req-date">
-        </div>
-        <div class="form-group">
-          <label>ความเร่งด่วน</label>
-          <select id="req-priority">
-            <option value="normal">ปกติ</option>
-            <option value="urgent">เร่งด่วน</option>
-            <option value="very_urgent">เร่งด่วนมาก</option>
-          </select>
+          <input type="date" id="req-date" value="${draft.date||''}" onchange="saveReqDraft()">
         </div>
       </div>
       <div class="form-group">
         <label>หมายเหตุ</label>
-        <textarea id="req-notes" placeholder="ข้อมูลเพิ่มเติม..."></textarea>
+        <textarea id="req-notes" placeholder="ข้อมูลเพิ่มเติม..." oninput="saveReqDraft()">${esc(draft.notes||'')}</textarea>
       </div>
-      <button class="btn btn-primary" onclick="submitRequest()">📤 ส่งใบคำร้อง</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="submitRequest()">📤 ส่งใบคำร้อง</button>
+        <button class="btn btn-ghost" onclick="clearReqDraft()">🗑️ ล้างข้อมูล</button>
+      </div>
     </div>
   `;
+}
+
+function saveReqDraft() {
+  const draft = {
+    requester: document.getElementById('req-requester')?.value,
+    dept: document.getElementById('req-dept')?.value,
+    name: document.getElementById('req-name')?.value,
+    machine: document.getElementById('req-machine')?.value,
+    qty: document.getElementById('req-qty')?.value,
+    drawing: document.querySelector('input[name="req-drawing"]:checked')?.value,
+    drawingNo: document.getElementById('req-drawing-no')?.value,
+    sample: document.getElementById('req-sample')?.value,
+    date: document.getElementById('req-date')?.value,
+    notes: document.getElementById('req-notes')?.value,
+  };
+  localStorage.setItem('req_draft', JSON.stringify(draft));
+}
+
+function clearReqDraft() {
+  localStorage.removeItem('req_draft');
+  navigateTo('create-request');
 }
 
 function toggleDrawing(val) {
@@ -1486,27 +1612,28 @@ function toggleDrawing(val) {
 }
 
 async function submitRequest() {
-  const type = document.querySelector('input[name="req-type"]:checked')?.value;
+  const requesterName = document.getElementById('req-requester').value.trim();
   const name = document.getElementById('req-name').value.trim();
   const machine = document.getElementById('req-machine').value.trim();
   const qty = parseInt(document.getElementById('req-qty').value);
   const date = document.getElementById('req-date').value;
   const dept = document.getElementById('req-dept').value.trim();
   const hasDrawing = document.querySelector('input[name="req-drawing"]:checked')?.value === 'yes';
-  if (!type || !name || !machine || !qty || !date) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+  if (!requesterName || !name || !machine || !qty || !date) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
   const payload = {
-    type, name, machine_location: machine, qty, requested_date: date,
-    requester_id: currentProfile.id, requester_name: currentProfile.full_name,
+    type: 'part', name, machine_location: machine, qty, requested_date: date,
+    requester_id: currentProfile.id, requester_name: requesterName,
     requester_dept: dept, has_drawing: hasDrawing,
     drawing_no: hasDrawing ? document.getElementById('req-drawing-no').value.trim() : null,
     sample_note: !hasDrawing ? document.getElementById('req-sample').value.trim() : null,
-    priority: document.getElementById('req-priority').value,
+    priority: 'normal',
     notes: document.getElementById('req-notes').value.trim(),
     status: 'pending_eng'
   };
   const { data, error } = await sb.from('projects').insert(payload).select().single();
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-  await notifyRole('eng_manager', `📋 ใบคำร้องใหม่: ${data.project_no}`, `${name} จาก ${currentProfile.full_name}`, data.id);
+  await notifyRole('eng_manager', `📋 ใบคำร้องใหม่: ${data.project_no}`, `${name} จาก ${requesterName}`, data.id);
+  localStorage.removeItem('req_draft');
   showToast(`ส่งใบคำร้อง ${data.project_no} แล้ว`, 'success'); navigateTo('my-requests');
 }
 
