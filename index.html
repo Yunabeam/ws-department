@@ -1028,32 +1028,16 @@ async function renderWSStatusPlan(mc) {
   mc.innerHTML = `
     <div class="section-header">
       <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
+      <div class="section-sub">กดเปิดโปรเจคเพื่อดูสถานะและกำหนดช่าง / วันที่ได้ทันที</div>
     </div>
-    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
-      <button id="tab-status" class="ws-tab active" onclick="switchWSTab('status')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">📋 สถานะโปรเจค</button>
-      <button id="tab-workplan" class="ws-tab" onclick="switchWSTab('workplan')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">📅 วางแผนงานรายวัน</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
     </div>
-    <div id="ws-tab-status">
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
-        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
-        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
-        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
-      </div>
-      <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
-    </div>
-    <div id="ws-tab-workplan" style="display:none"></div>
+    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
   `;
-}
-
-function switchWSTab(tab) {
-  document.getElementById('ws-tab-status').style.display = tab === 'status' ? '' : 'none';
-  document.getElementById('ws-tab-workplan').style.display = tab === 'workplan' ? '' : 'none';
-  document.getElementById('tab-status').style.borderBottomColor = tab === 'status' ? 'var(--primary)' : 'transparent';
-  document.getElementById('tab-status').style.color = tab === 'status' ? 'var(--primary)' : 'var(--muted)';
-  document.getElementById('tab-workplan').style.borderBottomColor = tab === 'workplan' ? 'var(--primary)' : 'transparent';
-  document.getElementById('tab-workplan').style.color = tab === 'workplan' ? 'var(--primary)' : 'var(--muted)';
-  if (tab === 'workplan') renderWorkPlanView(todayStr());
 }
 
 // ============================================================
