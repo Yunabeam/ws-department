@@ -1260,11 +1260,10 @@ async function openPlanModal(projId) {
           ช่างผู้รับผิดชอบ
           <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('worker')">⚙️ จัดการ</button>
         </label>
-        <select id="ps-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" onchange="showWorkerHours(this.value)">
+        <select id="ps-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
           <option value="">— เลือกช่าง —</option>
           ${workers.map(w=>`<option value="${w}">${w}</option>`).join('')}
         </select>
-        <div id="ps-worker-hours" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
       </div>
       <div class="form-group"><label>Part No.</label><input id="ps-partno" placeholder="Part No."></div>
     </div>
