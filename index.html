@@ -1050,7 +1050,8 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
     const stepsHtml = steps.length ? steps.map(s => {
       const isDone = ['confirmed','done_by_worker'].includes(s.status);
-      const isLocked = s.status === 'pending' && steps.find(prev => prev.seq === s.seq - 1 && !['confirmed','done_by_worker'].includes(prev.status));
+      const isExecuting = ['in_progress','pending_qc'].includes(p.status);
+      const isLocked = isExecuting && s.status === 'pending' && steps.find(prev => prev.seq === s.seq - 1 && !['confirmed','done_by_worker'].includes(prev.status));
       const canPlan = !isDone && !isLocked;
       const rowBg = isDone ? 'background:#f0fdf4' : s.status === 'in_progress' ? 'background:#eff6ff' : isLocked ? 'opacity:.55' : '';
       const dotColor = isDone ? 'background:var(--green);color:#fff' : s.status==='in_progress' ? 'background:var(--teal);color:#fff' : 'background:#e2e8f0;color:#94a3b8';
