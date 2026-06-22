@@ -846,6 +846,7 @@ async function confirmDeleteProject(id, projNo, name) {
 async function deleteProject(id) {
   closeModal();
   await sb.from('work_logs').delete().eq('project_id', id);
+  await sb.from('kpi_records').delete().eq('project_id', id);
   await sb.from('process_steps').delete().eq('project_id', id);
   await sb.from('notifications').delete().eq('project_id', id);
   await sb.from('qc_logs').delete().eq('project_id', id);
