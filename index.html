@@ -1558,7 +1558,7 @@ async function renderMyTasks(mc) {
   const today = todayStr();
   // แสดงเฉพาะงานที่วางแผนวันนี้ หรือยังไม่มีวันกำหนด (กัน edge case)
   const steps = (allStepsRaw || []).filter(s => {
-    if (!s.planned_start) return false; // ยังไม่ได้วางแผน ไม่แสดง
+    if (!s.planned_start) return true; // ยังไม่ได้วางแผน แสดงไว้ก่อน
     return dateInRange(today, s.planned_start, s.planned_end);
   });
   const active = steps.filter(s => ['assigned','in_progress'].includes(s.status));
