@@ -649,10 +649,12 @@ async function renderDashboard(mc) {
   const p = projs || [], s = steps || [];
   const counts = {
     pending: p.filter(x => ['pending_eng','pending_executive'].includes(x.status)).length,
-    inProgress: p.filter(x => x.status === 'in_progress').length,
+    inProgress: p.filter(x => ['in_progress','planning','assigning'].includes(x.status)).length,
     pendingQC: p.filter(x => x.status === 'pending_qc').length,
+    qcPass: p.filter(x => x.status === 'qc_pass').length,
     done: p.filter(x => x.status === 'completed').length,
-    urgent: p.filter(x => x.priority === 'very_urgent').length,
+    rejected: p.filter(x => x.status === 'rejected').length,
+    urgent: p.filter(x => x.priority === 'very_urgent' && !['completed','rejected'].includes(x.status)).length,
   };
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📊 ภาพรวม</div><div class="section-sub">สรุปสถานะงานทั้งหมด</div></div>
@@ -660,7 +662,9 @@ async function renderDashboard(mc) {
       <div class="stat-card"><div class="stat-num" style="color:var(--amber)">${counts.pending}</div><div class="stat-label">รออนุมัติ</div></div>
       <div class="stat-card"><div class="stat-num" style="color:var(--teal)">${counts.inProgress}</div><div class="stat-label">กำลังดำเนินการ</div></div>
       <div class="stat-card"><div class="stat-num" style="color:purple">${counts.pendingQC}</div><div class="stat-label">รอตรวจ QC</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#7c3aed">${counts.qcPass}</div><div class="stat-label">QC ผ่าน (รอรับงาน)</div></div>
       <div class="stat-card"><div class="stat-num" style="color:var(--green)">${counts.done}</div><div class="stat-label">เสร็จสิ้น</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--muted)">${counts.rejected}</div><div class="stat-label">ปฏิเสธ</div></div>
       <div class="stat-card"><div class="stat-num" style="color:var(--red)">${counts.urgent}</div><div class="stat-label">งานเร่งด่วนมาก</div></div>
     </div>
     <div class="card">
