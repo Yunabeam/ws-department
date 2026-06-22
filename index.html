@@ -1077,10 +1077,14 @@ async function wsAssignWorker(stepId, projId, sel) {
 async function wsSendToWorkers(projId) {
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
-  if (!steps || steps.some(s => !s.assigned_name)) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
+  if (!steps || steps.some(s => !s.assigned_name && s.machine !== 'ส่งออก (จัดซื้อ)')) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
+  // set all pending/failed steps to assigned
+  for (const s of steps) {
+    if (['pending','failed_qc'].includes(s.status) && s.assigned_name) {
+      await sb.from('process_steps').update({ status: 'assigned' }).eq('id', s.id);
+    }
+  }
   await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
-  const first = steps[0];
-  await notify(first.assigned_to, `🔧 งานใหม่: ${p.project_no}`, `${p.name} - ขั้นตอน ${first.seq}: ${first.step_name}`, projId);
   showToast('ส่งงานให้ช่างแล้ว', 'success');
   navigateTo('ws-status-plan');
 }
