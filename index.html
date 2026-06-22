@@ -805,6 +805,7 @@ function filterProjects(q) {
 
 function renderProjectTable(rows) {
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
+  const isSuperAdmin = USERS_DB[currentUser?.email]?.superAdmin;
   return `<div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr></thead>
     <tbody>${rows.map(r => `
@@ -816,10 +817,40 @@ function renderProjectTable(rows) {
         <td>${statusBadge(r.status)}</td>
         <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
         <td>${fmtDate(r.confirmed_deadline)}</td>
-        <td><button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button>
+          ${isSuperAdmin ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${r.id}','${esc(r.project_no||'')}','${esc(r.name)}')">🗑️ ลบ</button>` : ''}
+        </td>
       </tr>`).join('')}
     </tbody>
   </table></div>`;
+}
+
+async function confirmDeleteProject(id, projNo, name) {
+  openModal(`🗑️ ลบโปรเจค`, `
+    <div style="padding:8px 0">
+      <p style="font-size:15px">ยืนยันการลบโปรเจค?</p>
+      <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:12px;margin:12px 0">
+        <b>${esc(projNo)}</b> — ${esc(name)}
+      </div>
+      <p style="font-size:13px;color:#dc2626">⚠️ จะลบขั้นตอนทั้งหมดในโปรเจคนี้ด้วย และไม่สามารถกู้คืนได้</p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn" style="background:#dc2626;color:#fff;border:none" onclick="deleteProject('${id}')">ยืนยันลบ</button>
+    </div>
+  `);
+}
+
+async function deleteProject(id) {
+  closeModal();
+  await sb.from('process_steps').delete().eq('project_id', id);
+  await sb.from('notifications').delete().eq('project_id', id);
+  await sb.from('qc_logs').delete().eq('project_id', id);
+  const { error } = await sb.from('projects').delete().eq('id', id);
+  if (error) { showToast('ลบไม่สำเร็จ: ' + error.message, 'error'); return; }
+  showToast('ลบโปรเจคแล้ว', 'success');
+  navigateTo('all-projects');
 }
 
 async function openProjectDetail(id) {
