@@ -1582,14 +1582,16 @@ async function renderMyTasks(mc) {
 
   const { data: allStepsRaw } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).eq('assigned_name', myName).order('seq');
   const today = todayStr();
-  // แสดงเฉพาะงานที่วางแผนวันนี้ หรือยังไม่มีวันกำหนด (กัน edge case)
-  // แสดงเฉพาะ step ที่หัวหน้า WS วางแผนแล้ว (planned_start มีค่า)
   const steps = (allStepsRaw || []).filter(s => !!s.planned_start);
   const active = steps.filter(s => ['assigned','in_progress'].includes(s.status));
   const waiting = steps.filter(s => s.status === 'done_by_worker');
+  const totalAssigned = (allStepsRaw || []).length;
+  const emptyMsg = totalAssigned === 0
+    ? `<div class="card"><div class="empty"><div class="empty-icon">📋</div>ยังไม่มีงานที่ได้รับมอบหมาย<br><span style="font-size:12px;color:var(--muted)">ชื่อช่าง: ${esc(myName)}</span></div></div>`
+    : `<div class="card"><div class="empty"><div class="empty-icon">⏳</div>มีงานที่ได้รับมอบหมาย ${totalAssigned} ขั้นตอน<br><span style="font-size:13px;color:var(--amber);font-weight:600">แต่หัวหน้า WS ยังไม่วางแผนวันนี้</span><br><span style="font-size:12px;color:var(--muted)">หัวหน้า WS ต้องกด "📅 วางแผนวันนี้" ในหน้า สถานะ &amp; วางแผน</span></div></div>`;
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
-    ${active.length === 0 && waiting.length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' : ''}
+    ${active.length === 0 && waiting.length === 0 ? emptyMsg : ''}
     ${active.map(s => `<div class="card">
       <div class="card-header">
         <div>
