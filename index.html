@@ -976,6 +976,25 @@ async function renderKPIReport(mc) {
 }
 
 // ============================================================
+// WS MANAGER - PLAN DATE HELPERS (localStorage)
+// ============================================================
+function getPlanDates() {
+  try { return JSON.parse(localStorage.getItem('ws_plan_dates') || '{}'); } catch { return {}; }
+}
+function savePlanDate(stepId, date) {
+  const d = getPlanDates(); if (date) d[stepId] = date; else delete d[stepId];
+  localStorage.setItem('ws_plan_dates', JSON.stringify(d));
+}
+function getStepHours(s) {
+  if (!s.time_per_piece || !s.qty) return 0;
+  return s.time_per_piece * s.qty / 60;
+}
+function todayStr() {
+  const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+// ============================================================
 // WS MANAGER - STATUS & PLAN (NEW)
 // ============================================================
 async function renderWSStatusPlan(mc) {
@@ -984,7 +1003,6 @@ async function renderWSStatusPlan(mc) {
     .order('priority').order('created_at', { ascending: false });
   const projects = projs || [];
 
-  // load steps for all projects
   const stepMap = {};
   if (projects.length) {
     const ids = projects.map(p => p.id);
@@ -995,32 +1013,175 @@ async function renderWSStatusPlan(mc) {
     });
   }
 
-  const workerList = WS_WORKERS;
-
-  const needPlan = projects.filter(p => p.status === 'approved' || p.status === 'planning');
+  const workerList = getWorkerList();
+  const needPlan = projects.filter(p => ['approved','planning'].includes(p.status));
   const inProg   = projects.filter(p => ['assigning','in_progress'].includes(p.status));
   const waitQC   = projects.filter(p => p.status === 'pending_qc');
 
-  // Update badge
   const nb = document.getElementById('need-plan-badge');
   if (nb) { if (needPlan.length) { nb.style.display='flex'; nb.textContent=needPlan.length; } else nb.style.display='none'; }
+
+  window._wsProjects = projects;
+  window._wsStepMap = stepMap;
+  window._wsWorkers = workerList;
 
   mc.innerHTML = `
     <div class="section-header">
       <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
-      <div class="section-sub">กดเปิดโปรเจคเพื่อดูสถานะและกำหนดช่าง / วันที่ได้ทันที</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button id="tab-status" class="ws-tab active" onclick="switchWSTab('status')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">📋 สถานะโปรเจค</button>
+      <button id="tab-workplan" class="ws-tab" onclick="switchWSTab('workplan')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">📅 วางแผนงานรายวัน</button>
     </div>
-    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
+    <div id="ws-tab-status">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
+        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
+        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
+        <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
+      </div>
+      <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
+    </div>
+    <div id="ws-tab-workplan" style="display:none"></div>
   `;
-  window._wsProjects = projects;
-  window._wsStepMap = stepMap;
-  window._wsWorkers = workerList;
+}
+
+function switchWSTab(tab) {
+  document.getElementById('ws-tab-status').style.display = tab === 'status' ? '' : 'none';
+  document.getElementById('ws-tab-workplan').style.display = tab === 'workplan' ? '' : 'none';
+  document.getElementById('tab-status').style.borderBottomColor = tab === 'status' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-status').style.color = tab === 'status' ? 'var(--primary)' : 'var(--muted)';
+  document.getElementById('tab-workplan').style.borderBottomColor = tab === 'workplan' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-workplan').style.color = tab === 'workplan' ? 'var(--primary)' : 'var(--muted)';
+  if (tab === 'workplan') renderWorkPlanView(todayStr());
+}
+
+// ============================================================
+// WS MANAGER - WORK PLAN VIEW (วางแผนงานรายวัน)
+// ============================================================
+async function renderWorkPlanView(selDate) {
+  const mc = document.getElementById('ws-tab-workplan');
+  if (!mc) return;
+  mc.innerHTML = '<div class="spinner" style="margin:40px auto"></div>';
+
+  // Load all active steps with project info
+  const { data: rawSteps } = await sb.from('process_steps')
+    .select('*,projects(project_no,name,id,status)')
+    .in('status', ['pending','assigned','in_progress','done_by_worker'])
+    .order('seq');
+  const allSteps = rawSteps || [];
+  const planDates = getPlanDates();
+  const workers = getWorkerList();
+
+  // Attach planned_date from localStorage
+  allSteps.forEach(s => { s._planned_date = planDates[s.id] || null; });
+
+  // Steps planned for selDate
+  const todaySteps = allSteps.filter(s => s._planned_date === selDate);
+  // Steps with no date assigned yet (unplanned)
+  const unplanned = allSteps.filter(s => !s._planned_date);
+
+  // Worker summary for selDate
+  const workerHours = {};
+  workers.forEach(w => { workerHours[w] = 0; });
+  todaySteps.forEach(s => {
+    const w = s.assigned_name;
+    if (w) workerHours[w] = (workerHours[w] || 0) + getStepHours(s);
+  });
+
+  const workerCards = workers.map(w => {
+    const hrs = workerHours[w] || 0;
+    const pct = Math.min(hrs / 8 * 100, 100);
+    const barColor = hrs >= 8 ? 'var(--red)' : hrs >= 6 ? 'var(--amber)' : 'var(--green)';
+    const tasks = todaySteps.filter(s => s.assigned_name === w);
+    return `<div class="card" style="padding:12px;min-width:160px;flex:1">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(w)}</div>
+      <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;overflow:hidden">
+        <div style="height:100%;background:${barColor};width:${pct}%;transition:.3s;border-radius:3px"></div>
+      </div>
+      <div style="font-size:11px;color:${hrs>=8?'var(--red)':hrs>=6?'var(--amber)':'var(--muted)'}">
+        ${hrs.toFixed(1)} / 8 ชม. · ${tasks.length} งาน
+      </div>
+    </div>`;
+  }).join('');
+
+  // Render unplanned steps
+  const unplannedHtml = unplanned.length === 0
+    ? '<div style="padding:12px;font-size:13px;color:var(--muted)">ไม่มีขั้นตอนที่ยังไม่ได้วางแผน ✓</div>'
+    : unplanned.map(s => renderPlanRow(s, workers, planDates, selDate, false)).join('');
+
+  // Render steps planned for selDate
+  const todayHtml = todaySteps.length === 0
+    ? `<div style="padding:12px;font-size:13px;color:var(--muted)">ยังไม่มีงานวางแผนสำหรับวันที่ ${fmtDate(selDate)}</div>`
+    : todaySteps.map(s => renderPlanRow(s, workers, planDates, selDate, true)).join('');
+
+  mc.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:600">📅 เลือกวันที่:</label>
+      <input type="date" id="workplan-date" value="${selDate}" onchange="renderWorkPlanView(this.value)"
+        style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
+      <span style="font-size:12px;color:var(--muted)">วันทำงาน 8 ชม. (08:00–17:00 พัก 12:00–13:00)</span>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">สรุปชั่วโมงงานรายช่าง</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">${workerCards}</div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">วางแผนงานวันที่ ${fmtDate(selDate)} (${todaySteps.length} ขั้นตอน)</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
+        <span>งาน / ขั้นตอน</span><span>ช่างผู้รับผิดชอบ</span><span>วันที่กำหนด</span><span>ชั่วโมง</span>
+      </div>
+      ${todayHtml}
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ยังไม่ได้วางแผน (${unplanned.length} ขั้นตอน)</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
+        <span>งาน / ขั้นตอน</span><span>ช่างผู้รับผิดชอบ</span><span>วันที่กำหนด</span><span>ชั่วโมง</span>
+      </div>
+      ${unplannedHtml}
+    </div>
+  `;
+}
+
+function renderPlanRow(s, workers, planDates, selDate, isPlanned) {
+  const hrs = getStepHours(s);
+  const projNo = s.projects?.project_no || '—';
+  const projName = s.projects?.name || '—';
+  const plannedDate = planDates[s.id] || '';
+  const rowBg = isPlanned ? 'background:#f0fdf4' : '';
+  return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;${rowBg}">
+    <div>
+      <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(projNo)}</div>
+      <div style="font-size:13px;font-weight:600">${s.seq}. ${esc(s.step_name)}</div>
+      <div style="font-size:11px;color:var(--muted)">${esc(projName)}</div>
+    </div>
+    <div>
+      <select style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:100%"
+        onchange="wsUpdatePlanWorker('${s.id}',this.value,'${s.projects?.id||''}')">
+        <option value="">— เลือกช่าง —</option>
+        ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <input type="date" value="${plannedDate}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:100%"
+        onchange="wsUpdatePlanDate('${s.id}',this.value)">
+    </div>
+    <div style="font-size:13px;font-weight:600;color:var(--muted)">${hrs > 0 ? hrs.toFixed(1)+' ชม.' : '—'}</div>
+  </div>`;
+}
+
+async function wsUpdatePlanWorker(stepId, workerName, projId) {
+  await sb.from('process_steps').update({ assigned_name: workerName || null, status: workerName ? 'assigned' : 'pending' }).eq('id', stepId);
+  if (projId) await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
+  const selDate = document.getElementById('workplan-date')?.value || todayStr();
+  renderWorkPlanView(selDate);
+}
+
+async function wsUpdatePlanDate(stepId, date) {
+  savePlanDate(stepId, date);
+  const selDate = document.getElementById('workplan-date')?.value || todayStr();
+  renderWorkPlanView(selDate);
 }
 
 function wsFilter(f, btn) {
@@ -1255,16 +1416,6 @@ async function openPlanModal(projId) {
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label style="display:flex;align-items:center;justify-content:space-between">
-          ช่างผู้รับผิดชอบ
-          <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('worker')">⚙️ จัดการ</button>
-        </label>
-        <select id="ps-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-          <option value="">— เลือกช่าง —</option>
-          ${workers.map(w=>`<option value="${w}">${w}</option>`).join('')}
-        </select>
-      </div>
       <div class="form-group"><label>Part No.</label><input id="ps-partno" placeholder="Part No." autocomplete="off"></div>
     </div>
     <div class="form-row">
@@ -1313,7 +1464,6 @@ async function addStep(projId, seq) {
   const name = document.getElementById('ps-name').value.trim();
   const machine = document.getElementById('ps-machine').value.trim();
   const partno = document.getElementById('ps-partno').value.trim();
-  const workerName = document.getElementById('ps-worker').value.trim();
   const isOutsource = document.getElementById('ps-outsource').checked;
   const time = isOutsource ? null : parseFloat(document.getElementById('ps-time').value);
   const qty = parseInt(document.getElementById('ps-qty').value);
@@ -1324,8 +1474,7 @@ async function addStep(projId, seq) {
     project_id: projId, seq, step_name: name,
     machine: isOutsource ? 'ส่งออก (จัดซื้อ)' : machine,
     part_no: partno, time_per_piece: time, qty,
-    assigned_name: isOutsource ? null : (workerName || null),
-    status: (!isOutsource && workerName) ? 'assigned' : 'pending',
+    status: 'pending',
     notes: isOutsource ? (notes ? notes + ' [Outsource]' : '[Outsource]') : notes
   });
   document.getElementById('modal').classList.remove('modal-lg');
