@@ -1014,9 +1014,9 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       </div>`;
     }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
 
-    const allAssigned = steps.length && steps.every(s => ['confirmed','done_by_worker'].includes(s.status) || s.assigned_to);
+    const allAssigned = steps.length && steps.every(s => s.assigned_name || ['confirmed','done_by_worker','assigned','in_progress'].includes(s.status));
     const canSendWorkers = allAssigned && ['approved','planning','assigning'].includes(p.status);
-    const canSendQC = p.status === 'in_progress' && steps.length && steps.every(s => s.status === 'confirmed');
+    const canSendQC = steps.length && steps.every(s => ['confirmed','done_by_worker'].includes(s.status));
 
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px" id="wsc-${p.id}">
       <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:#fff" onclick="toggleWSCard('${p.id}')">
