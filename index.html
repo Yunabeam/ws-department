@@ -996,13 +996,14 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
         ? `<span style="font-size:12px;color:var(--teal);font-weight:600">${esc(s.assigned_name||'—')}</span>`
         : isLocked
         ? `<span style="font-size:12px;color:#94a3b8">—</span>`
+        : s.machine === 'ส่งออก (จัดซื้อ)'
+        ? `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`
         : `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;max-width:150px" ${s.assigned_to?'':''}
+            <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;max-width:150px"
               onchange="wsAssignWorker('${s.id}','${p.id}',this)">
               <option value="">— เลือกช่าง —</option>
               ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
             </select>
-            ${s.assigned_to ? `<span style="font-size:11px;color:var(--green);font-weight:600">✓ บันทึกแล้ว</span>` : ''}
            </div>`;
       return `<div style="display:grid;grid-template-columns:38% 16% 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;${rowBg}">
         <div style="display:flex;align-items:center;gap:9px">
@@ -1056,6 +1057,12 @@ function toggleWSCard(id) {
   const open = body.style.display === 'none';
   body.style.display = open ? 'block' : 'none';
   if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+async function wsOutsourceReturn(stepId, projId) {
+  await sb.from('process_steps').update({ assigned_name: 'จัดซื้อ', status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  showToast('บันทึกแล้ว — งาน Outsource กลับมาแล้ว', 'success');
+  setTimeout(() => navigateTo('ws-status-plan'), 100);
 }
 
 async function wsAssignWorker(stepId, projId, sel) {
