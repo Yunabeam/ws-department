@@ -1608,10 +1608,11 @@ async function startTask(stepId) {
 }
 
 async function completeTask(stepId, projId) {
-  await sb.from('process_steps').update({ status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  const { error } = await sb.from('process_steps').update({ status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
-  await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step.seq}: ${step.step_name} โดย ${currentProfile.full_name}`, projId);
+  if (p) await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step?.seq}: ${step?.step_name} โดย ${currentProfile.full_name}`, projId);
   showToast('ยืนยันงานเสร็จแล้ว', 'success'); navigateTo('my-tasks');
 }
 
