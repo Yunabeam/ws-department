@@ -978,13 +978,8 @@ async function renderKPIReport(mc) {
 // ============================================================
 // WS MANAGER - PLAN DATE HELPERS (localStorage)
 // ============================================================
-function getPlanDates() {
-  try { return JSON.parse(localStorage.getItem('ws_plan_dates') || '{}'); } catch { return {}; }
-}
-function savePlanDates(stepId, start, end) {
-  const d = getPlanDates();
-  if (start || end) d[stepId] = { start: start||'', end: end||'' }; else delete d[stepId];
-  localStorage.setItem('ws_plan_dates', JSON.stringify(d));
+async function savePlanDatesToDB(stepId, start, end) {
+  await sb.from('process_steps').update({ planned_start: start||null, planned_end: end||null }).eq('id', stepId);
 }
 function getStepHours(s) {
   if (!s.time_per_piece || !s.qty) return 0;
@@ -1031,11 +1026,9 @@ async function renderWSStatusPlan(mc) {
   window._wsStepMap = stepMap;
   window._wsWorkers = workerList;
 
-  // Build worker-today summary
-  const planDates = getPlanDates();
   const today = todayStr();
   const allStepsFlat = Object.values(stepMap).flat();
-  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, planDates, today);
+  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, today);
 
   mc.innerHTML = `
     <div class="section-header">
@@ -1048,21 +1041,19 @@ async function renderWSStatusPlan(mc) {
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
     </div>
-    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all', planDates)}</div>
+    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
   `;
 }
 
 // ============================================================
 // WS MANAGER - WORKER TODAY SUMMARY
 // ============================================================
-function renderWorkerTodaySummary(workers, allStepsFlat, planDates, today) {
-  // Each worker: steps where today is within planned_start..planned_end
+function renderWorkerTodaySummary(workers, allStepsFlat, today) {
   const workerData = workers.map(w => {
     const tasks = allStepsFlat.filter(s => {
       if (s.assigned_name !== w) return false;
-      const pd = planDates[s.id];
-      if (!pd || !pd.start) return false;
-      return dateInRange(today, pd.start, pd.end);
+      if (!s.planned_start) return false;
+      return dateInRange(today, s.planned_start, s.planned_end);
     });
     const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
     return { w, tasks, hrs };
@@ -1077,8 +1068,7 @@ function renderWorkerTodaySummary(workers, allStepsFlat, planDates, today) {
     const pct = Math.min(hrs / 8 * 100, 100);
     const barColor = hrs >= 8 ? 'var(--red)' : hrs >= 6 ? 'var(--amber)' : 'var(--green)';
     const taskList = tasks.map(s => {
-      const pd = planDates[s.id];
-      const dateRange = pd.end && pd.end !== pd.start ? `${fmtDate(pd.start)}–${fmtDate(pd.end)}` : fmtDate(pd.start);
+      const dateRange = s.planned_end && s.planned_end !== s.planned_start ? `${fmtDate(s.planned_start)}–${fmtDate(s.planned_end)}` : fmtDate(s.planned_start);
       return `<div style="font-size:11px;padding:3px 0;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:8px">
         <span style="color:#374151">${s.seq}. ${esc(s.step_name)}</span>
         <span style="color:var(--muted);white-space:nowrap">${dateRange}</span>
@@ -1103,26 +1093,30 @@ function renderWorkerTodaySummary(workers, allStepsFlat, planDates, today) {
     </div>`;
 }
 
-function wsSavePlanDates(stepId, field, val) {
-  const d = getPlanDates();
-  if (!d[stepId]) d[stepId] = { start:'', end:'' };
-  d[stepId][field] = val;
-  localStorage.setItem('ws_plan_dates', JSON.stringify(d));
+async function wsSavePlanDates(stepId, field, val) {
+  // update local cache
+  const stepMap = window._wsStepMap || {};
+  for (const steps of Object.values(stepMap)) {
+    const s = steps.find(x => x.id === stepId);
+    if (s) { s[field === 'start' ? 'planned_start' : 'planned_end'] = val || null; }
+  }
+  // save to DB
+  const upd = field === 'start' ? { planned_start: val||null } : { planned_end: val||null };
+  await sb.from('process_steps').update(upd).eq('id', stepId);
   // refresh worker summary
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
-  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, getPlanDates(), todayStr());
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
 }
 
 function wsFilter(f, btn) {
   document.querySelectorAll('.ws-filter').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f, getPlanDates());
+  document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f);
 }
 
-function renderWSPrjCards(projects, stepMap, workers, filter, planDates) {
-  planDates = planDates || getPlanDates();
+function renderWSPrjCards(projects, stepMap, workers, filter) {
   const filtered = projects.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'need') return ['approved','planning'].includes(p.status);
@@ -1150,9 +1144,8 @@ function renderWSPrjCards(projects, stepMap, workers, filter, planDates) {
       const dotColor = isDone ? 'background:var(--green);color:#fff' : s.status==='in_progress' ? 'background:var(--teal);color:#fff' : 'background:#e2e8f0;color:#94a3b8';
       const dotIcon = isDone ? '✓' : s.status==='in_progress' ? '▶' : isLocked ? '🔒' : s.seq;
       const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">กำลังทำ</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : `<span class="status s-planning">รอวางแผน</span>`;
-      const pd = planDates[s.id] || {};
-      const planStart = pd.start || '';
-      const planEnd = pd.end || '';
+      const planStart = s.planned_start || '';
+      const planEnd = s.planned_end || '';
       const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
       const planCell = isDone
         ? `<div style="font-size:12px;color:var(--muted)">${esc(s.assigned_name||'—')}<br><span style="color:var(--green)">${dateDisplay}</span></div>`
@@ -1554,9 +1547,14 @@ async function renderMyTasks(mc) {
   }
 
   const { data: allStepsRaw } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).eq('assigned_name', myName).order('seq');
-  const steps = allStepsRaw || [];
-  const active = (steps||[]).filter(s => ['assigned','in_progress'].includes(s.status));
-  const waiting = (steps||[]).filter(s => s.status === 'done_by_worker');
+  const today = todayStr();
+  // แสดงเฉพาะงานที่วางแผนวันนี้ หรือยังไม่มีวันกำหนด (กัน edge case)
+  const steps = (allStepsRaw || []).filter(s => {
+    if (!s.planned_start) return true; // ยังไม่ได้วางแผน แสดงไว้ก่อน
+    return dateInRange(today, s.planned_start, s.planned_end);
+  });
+  const active = steps.filter(s => ['assigned','in_progress'].includes(s.status));
+  const waiting = steps.filter(s => s.status === 'done_by_worker');
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
     ${active.length === 0 && waiting.length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' : ''}
