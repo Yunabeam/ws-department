@@ -1155,11 +1155,10 @@ async function wsSendToWorkers(projId) {
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   if (!steps || steps.some(s => !s.assigned_name && s.machine !== 'ส่งออก (จัดซื้อ)')) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
-  // set all pending/failed steps to assigned
-  for (const s of steps) {
-    if (['pending','failed_qc'].includes(s.status) && s.assigned_name) {
-      await sb.from('process_steps').update({ status: 'assigned' }).eq('id', s.id);
-    }
+  // ส่งแค่ step แรกที่ยังไม่เริ่มก่อน step ถัดไปรอจนกว่าช่างจะทำเสร็จ
+  const firstPending = steps.find(s => ['pending','assigned','failed_qc'].includes(s.status));
+  if (firstPending) {
+    await sb.from('process_steps').update({ status: 'assigned' }).eq('id', firstPending.id);
   }
   await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
   showToast('ส่งงานให้ช่างแล้ว', 'success');
@@ -1417,22 +1416,24 @@ async function renderWSConfirmSteps(mc) {
 
 async function confirmStep(stepId, projId) {
   await sb.from('process_steps').update({ status: 'confirmed', manager_confirmed_at: new Date().toISOString() }).eq('id', stepId);
-  // Check if all confirmed
   const { data: allSteps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
-  const allDone = allSteps && allSteps.every(s => s.status === 'confirmed' || s.id === stepId);
+  const allDone = allSteps && allSteps.every(s => ['confirmed','done_by_worker'].includes(s.status) || s.id === stepId);
   if (allDone) {
     await notifyRole('eng_manager', `🎉 ขั้นตอนทั้งหมดเสร็จแล้ว: ${p.project_no}`, 'พร้อมส่ง QC', projId);
+    showToast('ยืนยันแล้ว — ทุก step เสร็จ พร้อมส่ง QC', 'success');
   } else {
-    // Notify next step worker
-    const confirmed = allSteps.filter(s => s.status === 'confirmed' || s.id === stepId);
-    const nextStep = allSteps.find(s => !confirmed.find(c => c.id === s.id));
-    if (nextStep && nextStep.assigned_to) {
-      await notify(nextStep.assigned_to, `🔧 ถึงคิวงานของคุณ: ${p.project_no}`, `ขั้นตอน ${nextStep.seq}: ${nextStep.step_name}`, projId);
+    // ปลดล็อก step ถัดไปที่ยังเป็น pending
+    const nextStep = allSteps.find(s => s.status === 'pending' && s.id !== stepId);
+    if (nextStep) {
+      await sb.from('process_steps').update({ status: 'assigned' }).eq('id', nextStep.id);
+      showToast(`ยืนยันแล้ว — ปลดล็อกขั้นตอน ${nextStep.seq}: ${nextStep.step_name}`, 'success');
+    } else {
+      showToast('ยืนยันเสร็จแล้ว', 'success');
     }
     await notifyRole('eng_manager', `✅ ยืนยันขั้นตอน ${allSteps.find(s=>s.id===stepId)?.seq||''}: ${p.project_no}`, p.name, projId);
   }
-  showToast('ยืนยันเสร็จแล้ว', 'success'); navigateTo('ws-confirm-steps');
+  navigateTo('ws-confirm-steps');
 }
 
 // ============================================================
