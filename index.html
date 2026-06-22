@@ -1077,7 +1077,7 @@ async function wsAssignWorker(stepId, projId, sel) {
 async function wsSendToWorkers(projId) {
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
-  if (!steps || steps.some(s => !s.assigned_to)) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
+  if (!steps || steps.some(s => !s.assigned_name)) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
   await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
   const first = steps[0];
   await notify(first.assigned_to, `🔧 งานใหม่: ${p.project_no}`, `${p.name} - ขั้นตอน ${first.seq}: ${first.step_name}`, projId);
