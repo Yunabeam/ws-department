@@ -1287,7 +1287,7 @@ async function confirmStep(stepId, projId) {
 // WS WORKER - MY TASKS
 // ============================================================
 async function renderMyTasks(mc) {
-  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty)').eq('assigned_to', currentProfile.id).in('status',['assigned','in_progress']).order('seq');
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty)').in('status',['assigned','in_progress']).order('seq');
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
     ${(steps||[]).length === 0 ? '<div class="card"><div class="empty"><div class="empty-icon">🎉</div>ไม่มีงานที่ได้รับมอบหมาย</div></div>' :
