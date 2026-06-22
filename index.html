@@ -1065,23 +1065,31 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today) {
     </div>`;
 
   const cards = workerData.map(({w, tasks, hrs}) => {
-    const pct = Math.min(hrs / 8 * 100, 100);
-    const barColor = hrs >= 8 ? 'var(--red)' : hrs >= 6 ? 'var(--amber)' : 'var(--green)';
+    const doneTasks = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status));
+    const pendingTasks = tasks.filter(s => !['confirmed','done_by_worker'].includes(s.status));
+    const doneHrs = doneTasks.reduce((sum, s) => sum + getStepHours(s), 0);
+    const allDone = pendingTasks.length === 0;
+    const cardBg = allDone ? 'background:#f0fdf4;border:1.5px solid var(--green)' : '';
     const taskList = tasks.map(s => {
-      const dateRange = s.planned_end && s.planned_end !== s.planned_start ? `${fmtDate(s.planned_start)}–${fmtDate(s.planned_end)}` : fmtDate(s.planned_start);
-      return `<div style="font-size:11px;padding:3px 0;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:8px">
-        <span style="color:#374151">${s.seq}. ${esc(s.step_name)}</span>
-        <span style="color:var(--muted);white-space:nowrap">${dateRange}</span>
+      const isDone = ['confirmed','done_by_worker'].includes(s.status);
+      const icon = s.status === 'confirmed' ? '✅' : s.status === 'done_by_worker' ? '⏳' : s.status === 'in_progress' ? '▶️' : '○';
+      const textColor = isDone ? 'color:#16a34a' : s.status === 'in_progress' ? 'color:var(--teal)' : 'color:#374151';
+      const textDecor = s.status === 'confirmed' ? 'text-decoration:line-through;opacity:.6' : '';
+      return `<div style="font-size:11px;padding:4px 0;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:5px">
+        <span>${icon}</span>
+        <span style="${textColor};${textDecor};flex:1">${s.seq}. ${esc(s.step_name)}</span>
+        ${s.status === 'done_by_worker' ? `<span style="font-size:10px;color:var(--amber);font-weight:600">รอยืนยัน</span>` : ''}
       </div>`;
     }).join('');
-    return `<div class="card" style="padding:12px;min-width:180px;flex:1;max-width:260px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(w)}</div>
+    return `<div class="card" style="padding:12px;min-width:180px;flex:1;max-width:280px;${cardBg}">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">${esc(w)}</span>
+        ${allDone ? `<span style="font-size:11px;background:var(--green);color:#fff;padding:1px 7px;border-radius:10px">เสร็จแล้ว</span>` : ''}
+      </div>
       <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;overflow:hidden">
-        <div style="height:100%;background:${barColor};width:${pct}%;border-radius:3px"></div>
+        <div style="height:100%;background:${allDone?'var(--green)':doneHrs>0?'var(--teal)':'#d1d5db'};width:${allDone?100:Math.min(doneHrs/hrs*100,100)}%;border-radius:3px;transition:.3s"></div>
       </div>
-      <div style="font-size:11px;color:${hrs>=8?'var(--red)':hrs>=6?'var(--amber)':'var(--muted)'};margin-bottom:6px">
-        ${hrs.toFixed(1)} / 8 ชม.
-      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${doneHrs.toFixed(1)} / ${hrs.toFixed(1)} ชม. · ${doneTasks.length}/${tasks.length} งาน</div>
       ${taskList}
     </div>`;
   }).join('');
