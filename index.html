@@ -283,6 +283,10 @@ let sidebarOpen = false;
 // ============================================================
 // ROLE LABELS
 // ============================================================
+// รายชื่อช่างและเครื่องจักร (แก้ไขได้ที่นี่)
+const WS_WORKERS = ['เรืองศิลป์','พิพัฒน์','ทศพร','ทองยศ','โกไซ','ศรันย์','วีระ'];
+const WS_MACHINES = ['กลึง1','กลึง2','กลึง3','มิลลิ่ง','คว้าน','กระทุ้ง','ไส','เจียร์เล็ก','เจียร์ใหญ่','CNC','เจียรโรเตอร์รี่','เจียร์กลม','เจียรกลม1','เจียร์กลม2','สว่าน','สว่านเจาะ','เลื่อย'];
+
 const ROLE_LABELS = {
   user: 'ผู้ใช้งาน', eng_manager: 'หัวหน้าวิศวกรรม',
   ws_manager: 'หัวหน้า WS', ws_worker: 'ลูกน้อง WS',
@@ -925,8 +929,7 @@ async function renderWSStatusPlan(mc) {
     });
   }
 
-  const { data: workers } = await sb.from('profiles').select('id,full_name,member_code').eq('role','ws_worker');
-  const workerList = workers || [];
+  const workerList = WS_WORKERS;
 
   const needPlan = projects.filter(p => p.status === 'approved' || p.status === 'planning');
   const inProg   = projects.filter(p => ['assigning','in_progress'].includes(p.status));
@@ -997,7 +1000,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
             <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;max-width:150px" ${s.assigned_to?'':''}
               onchange="wsAssignWorker('${s.id}','${p.id}',this)">
               <option value="">— เลือกช่าง —</option>
-              ${workers.map(w=>`<option value="${w.id}" ${s.assigned_to===w.id?'selected':''}>${esc(w.full_name)}</option>`).join('')}
+              ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
             </select>
             ${s.assigned_to ? `<span style="font-size:11px;color:var(--green);font-weight:600">✓ บันทึกแล้ว</span>` : ''}
            </div>`;
@@ -1055,14 +1058,12 @@ function toggleWSCard(id) {
 }
 
 async function wsAssignWorker(stepId, projId, sel) {
-  const workerId = sel.value;
-  const workerName = sel.options[sel.selectedIndex].text;
-  if (!workerId) return;
-  await sb.from('process_steps').update({ assigned_to: workerId, assigned_name: workerName, status: 'assigned' }).eq('id', stepId);
+  const workerName = sel.value;
+  if (!workerName) return;
+  await sb.from('process_steps').update({ assigned_name: workerName, status: 'assigned' }).eq('id', stepId);
   await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
   showToast('กำหนดช่างแล้ว', 'success');
-  navigateTo('ws-status-plan', true);
-  setTimeout(() => { navigateTo('ws-status-plan'); }, 100);
+  setTimeout(() => navigateTo('ws-status-plan'), 100);
 }
 
 async function wsSendToWorkers(projId) {
