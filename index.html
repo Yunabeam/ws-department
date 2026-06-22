@@ -1440,8 +1440,10 @@ async function renderMyTasks(mc) {
   // กรอง: แสดงเฉพาะ step ที่ถึงคิว = step แรก หรือ step ก่อนหน้า confirmed/done_by_worker แล้ว
   const byProject = {};
   (allStepsRaw||[]).forEach(s => { if (!byProject[s.project_id]) byProject[s.project_id] = []; byProject[s.project_id].push(s); });
+  const myName = currentProfile.full_name;
   const readySteps = (allStepsRaw||[]).filter(s => {
     if (!['assigned','in_progress','done_by_worker'].includes(s.status)) return false;
+    if (s.assigned_name !== myName) return false;
     const projSteps = byProject[s.project_id] || [];
     const prev = projSteps.find(ps => ps.seq === s.seq - 1);
     return !prev || ['confirmed','done_by_worker'].includes(prev.status);
