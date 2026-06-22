@@ -1575,15 +1575,25 @@ async function renderMyTasks(mc) {
         <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${s.qty} ชิ้น</div></div>
       </div>
       ${s.notes ? `<div style="font-size:13px;color:var(--muted)">หมายเหตุ: ${esc(s.notes)}</div>` : ''}
-      <div style="margin-top:12px;display:flex;gap:8px">
-        ${s.status === 'assigned' ? `<button class="btn btn-amber" onclick="startTask('${s.id}')">▶️ เริ่มทำงาน</button>` : ''}
-        ${s.status === 'in_progress' ? `<button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ ยืนยันเสร็จแล้ว</button>` : ''}
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${s.status === 'assigned' ? `
+          <button class="btn btn-amber" onclick="startTask('${s.id}')">▶️ เริ่มทำงาน</button>
+          <span style="font-size:12px;color:var(--muted)">กดเมื่อเริ่มทำแล้ว</span>` : ''}
+        ${s.status === 'in_progress' ? `
+          <div style="width:100%;padding:10px 12px;background:#f0fdf4;border:1.5px solid var(--green);border-radius:8px;font-size:13px;color:#166534;margin-bottom:6px">
+            📋 ทำเสร็จแล้ว? กดปุ่มด้านล่างเพื่อแจ้งหัวหน้า WS ให้มาตรวจรับงาน
+          </div>
+          <button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ แจ้งเสร็จ → รอหัวหน้ายืนยัน</button>` : ''}
       </div>
     </div>`).join('')}
     ${waiting.length > 0 ? `
-      <div style="margin-top:8px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">⏳ รอหัวหน้า WS ยืนยัน</div>
-      ${waiting.map(s => `<div class="card" style="border-left:4px solid var(--amber);opacity:.85">
-        <div class="card-header">
+      <div style="margin-top:16px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px;font-weight:700">⏳ รอหัวหน้า WS ตรวจรับ</span>
+        <span style="font-size:12px;color:var(--muted)">(${waiting.length} งาน)</span>
+      </div>
+      ${waiting.map(s => `<div class="card" style="border-left:4px solid var(--amber)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-size:20px">⏳</span>
           <div>
             <div class="card-title">${esc(s.projects?.project_no||'')} - ${esc(s.projects?.name||'')}</div>
             <div style="color:var(--muted);font-size:13px">
@@ -1591,7 +1601,10 @@ async function renderMyTasks(mc) {
               ${s.projects?.group_no ? ` · Group No: <b>${esc(s.projects.group_no)}</b>` : ''}
             </div>
           </div>
-          <span class="status s-done_by_worker">รอยืนยัน</span>
+          <span class="status s-done_by_worker" style="margin-left:auto">รอตรวจรับ</span>
+        </div>
+        <div style="font-size:12px;color:#92400e;background:#fffbeb;padding:8px 10px;border-radius:6px">
+          หัวหน้า WS กำลังตรวจรับงานนี้อยู่ครับ
         </div>
         <div class="detail-row">
           <div class="detail-item"><div class="detail-label">เครื่องจักร</div><div class="detail-value">${esc(s.machine||'-')}</div></div>
