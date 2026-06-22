@@ -1612,7 +1612,6 @@ async function completeTask(stepId, projId) {
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step.seq}: ${step.step_name} โดย ${currentProfile.full_name}`, projId);
-  await sb.from('work_logs').insert({ project_id: projId, step_id: stepId, worker_id: currentProfile.id, action: 'completed' });
   showToast('ยืนยันงานเสร็จแล้ว', 'success'); navigateTo('my-tasks');
 }
 
