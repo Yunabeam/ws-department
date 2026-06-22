@@ -981,8 +981,9 @@ async function renderKPIReport(mc) {
 function getPlanDates() {
   try { return JSON.parse(localStorage.getItem('ws_plan_dates') || '{}'); } catch { return {}; }
 }
-function savePlanDate(stepId, date) {
-  const d = getPlanDates(); if (date) d[stepId] = date; else delete d[stepId];
+function savePlanDates(stepId, start, end) {
+  const d = getPlanDates();
+  if (start || end) d[stepId] = { start: start||'', end: end||'' }; else delete d[stepId];
   localStorage.setItem('ws_plan_dates', JSON.stringify(d));
 }
 function getStepHours(s) {
@@ -992,6 +993,11 @@ function getStepHours(s) {
 function todayStr() {
   const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
+}
+function dateInRange(dateStr, start, end) {
+  if (!start) return false;
+  if (!end) return dateStr === start;
+  return dateStr >= start && dateStr <= end;
 }
 
 // ============================================================
@@ -1025,156 +1031,98 @@ async function renderWSStatusPlan(mc) {
   window._wsStepMap = stepMap;
   window._wsWorkers = workerList;
 
+  // Build worker-today summary
+  const planDates = getPlanDates();
+  const today = todayStr();
+  const allStepsFlat = Object.values(stepMap).flat();
+  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, planDates, today);
+
   mc.innerHTML = `
     <div class="section-header">
       <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
-      <div class="section-sub">กดเปิดโปรเจคเพื่อดูสถานะและกำหนดช่าง / วันที่ได้ทันที</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <div id="ws-worker-summary">${workerSummaryHtml}</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
     </div>
-    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all')}</div>
+    <div id="ws-prj-list">${renderWSPrjCards(projects, stepMap, workerList, 'all', planDates)}</div>
   `;
 }
 
 // ============================================================
-// WS MANAGER - WORK PLAN VIEW (วางแผนงานรายวัน)
+// WS MANAGER - WORKER TODAY SUMMARY
 // ============================================================
-async function renderWorkPlanView(selDate) {
-  const mc = document.getElementById('ws-tab-workplan');
-  if (!mc) return;
-  mc.innerHTML = '<div class="spinner" style="margin:40px auto"></div>';
+function renderWorkerTodaySummary(workers, allStepsFlat, planDates, today) {
+  // Each worker: steps where today is within planned_start..planned_end
+  const workerData = workers.map(w => {
+    const tasks = allStepsFlat.filter(s => {
+      if (s.assigned_name !== w) return false;
+      const pd = planDates[s.id];
+      if (!pd || !pd.start) return false;
+      return dateInRange(today, pd.start, pd.end);
+    });
+    const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
+    return { w, tasks, hrs };
+  }).filter(d => d.tasks.length > 0);
 
-  // Load all active steps with project info
-  const { data: rawSteps } = await sb.from('process_steps')
-    .select('*,projects(project_no,name,id,status)')
-    .in('status', ['pending','assigned','in_progress','done_by_worker'])
-    .order('seq');
-  const allSteps = rawSteps || [];
-  const planDates = getPlanDates();
-  const workers = getWorkerList();
+  if (!workerData.length) return `
+    <div style="margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-radius:8px;font-size:13px;color:var(--muted)">
+      📅 ยังไม่มีงานที่วางแผนสำหรับวันนี้ (${fmtDate(today)})
+    </div>`;
 
-  // Attach planned_date from localStorage
-  allSteps.forEach(s => { s._planned_date = planDates[s.id] || null; });
-
-  // Steps planned for selDate
-  const todaySteps = allSteps.filter(s => s._planned_date === selDate);
-  // Steps with no date assigned yet (unplanned)
-  const unplanned = allSteps.filter(s => !s._planned_date);
-
-  // Worker summary for selDate
-  const workerHours = {};
-  workers.forEach(w => { workerHours[w] = 0; });
-  todaySteps.forEach(s => {
-    const w = s.assigned_name;
-    if (w) workerHours[w] = (workerHours[w] || 0) + getStepHours(s);
-  });
-
-  const workerCards = workers.map(w => {
-    const hrs = workerHours[w] || 0;
+  const cards = workerData.map(({w, tasks, hrs}) => {
     const pct = Math.min(hrs / 8 * 100, 100);
     const barColor = hrs >= 8 ? 'var(--red)' : hrs >= 6 ? 'var(--amber)' : 'var(--green)';
-    const tasks = todaySteps.filter(s => s.assigned_name === w);
-    return `<div class="card" style="padding:12px;min-width:160px;flex:1">
+    const taskList = tasks.map(s => {
+      const pd = planDates[s.id];
+      const dateRange = pd.end && pd.end !== pd.start ? `${fmtDate(pd.start)}–${fmtDate(pd.end)}` : fmtDate(pd.start);
+      return `<div style="font-size:11px;padding:3px 0;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:8px">
+        <span style="color:#374151">${s.seq}. ${esc(s.step_name)}</span>
+        <span style="color:var(--muted);white-space:nowrap">${dateRange}</span>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="padding:12px;min-width:180px;flex:1;max-width:260px">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(w)}</div>
       <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;overflow:hidden">
-        <div style="height:100%;background:${barColor};width:${pct}%;transition:.3s;border-radius:3px"></div>
+        <div style="height:100%;background:${barColor};width:${pct}%;border-radius:3px"></div>
       </div>
-      <div style="font-size:11px;color:${hrs>=8?'var(--red)':hrs>=6?'var(--amber)':'var(--muted)'}">
-        ${hrs.toFixed(1)} / 8 ชม. · ${tasks.length} งาน
+      <div style="font-size:11px;color:${hrs>=8?'var(--red)':hrs>=6?'var(--amber)':'var(--muted)'};margin-bottom:6px">
+        ${hrs.toFixed(1)} / 8 ชม.
       </div>
+      ${taskList}
     </div>`;
   }).join('');
 
-  // Render unplanned steps
-  const unplannedHtml = unplanned.length === 0
-    ? '<div style="padding:12px;font-size:13px;color:var(--muted)">ไม่มีขั้นตอนที่ยังไม่ได้วางแผน ✓</div>'
-    : unplanned.map(s => renderPlanRow(s, workers, planDates, selDate, false)).join('');
-
-  // Render steps planned for selDate
-  const todayHtml = todaySteps.length === 0
-    ? `<div style="padding:12px;font-size:13px;color:var(--muted)">ยังไม่มีงานวางแผนสำหรับวันที่ ${fmtDate(selDate)}</div>`
-    : todaySteps.map(s => renderPlanRow(s, workers, planDates, selDate, true)).join('');
-
-  mc.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <label style="font-size:13px;font-weight:600">📅 เลือกวันที่:</label>
-      <input type="date" id="workplan-date" value="${selDate}" onchange="renderWorkPlanView(this.value)"
-        style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
-      <span style="font-size:12px;color:var(--muted)">วันทำงาน 8 ชม. (08:00–17:00 พัก 12:00–13:00)</span>
-    </div>
-
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">สรุปชั่วโมงงานรายช่าง</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">${workerCards}</div>
-
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">วางแผนงานวันที่ ${fmtDate(selDate)} (${todaySteps.length} ขั้นตอน)</div>
-    <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
-        <span>งาน / ขั้นตอน</span><span>ช่างผู้รับผิดชอบ</span><span>วันที่กำหนด</span><span>ชั่วโมง</span>
-      </div>
-      ${todayHtml}
-    </div>
-
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ยังไม่ได้วางแผน (${unplanned.length} ขั้นตอน)</div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;padding:7px 14px;background:#f8fafc;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">
-        <span>งาน / ขั้นตอน</span><span>ช่างผู้รับผิดชอบ</span><span>วันที่กำหนด</span><span>ชั่วโมง</span>
-      </div>
-      ${unplannedHtml}
-    </div>
-  `;
+  return `
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ภาพรวมช่างวันนี้ · ${fmtDate(today)}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>
+    </div>`;
 }
 
-function renderPlanRow(s, workers, planDates, selDate, isPlanned) {
-  const hrs = getStepHours(s);
-  const projNo = s.projects?.project_no || '—';
-  const projName = s.projects?.name || '—';
-  const plannedDate = planDates[s.id] || '';
-  const rowBg = isPlanned ? 'background:#f0fdf4' : '';
-  return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;${rowBg}">
-    <div>
-      <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(projNo)}</div>
-      <div style="font-size:13px;font-weight:600">${s.seq}. ${esc(s.step_name)}</div>
-      <div style="font-size:11px;color:var(--muted)">${esc(projName)}</div>
-    </div>
-    <div>
-      <select style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:100%"
-        onchange="wsUpdatePlanWorker('${s.id}',this.value,'${s.projects?.id||''}')">
-        <option value="">— เลือกช่าง —</option>
-        ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
-      </select>
-    </div>
-    <div>
-      <input type="date" value="${plannedDate}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:100%"
-        onchange="wsUpdatePlanDate('${s.id}',this.value)">
-    </div>
-    <div style="font-size:13px;font-weight:600;color:var(--muted)">${hrs > 0 ? hrs.toFixed(1)+' ชม.' : '—'}</div>
-  </div>`;
-}
-
-async function wsUpdatePlanWorker(stepId, workerName, projId) {
-  await sb.from('process_steps').update({ assigned_name: workerName || null, status: workerName ? 'assigned' : 'pending' }).eq('id', stepId);
-  if (projId) await sb.from('projects').update({ status: 'planning' }).eq('id', projId);
-  const selDate = document.getElementById('workplan-date')?.value || todayStr();
-  renderWorkPlanView(selDate);
-}
-
-async function wsUpdatePlanDate(stepId, date) {
-  savePlanDate(stepId, date);
-  const selDate = document.getElementById('workplan-date')?.value || todayStr();
-  renderWorkPlanView(selDate);
+function wsSavePlanDates(stepId, field, val) {
+  const d = getPlanDates();
+  if (!d[stepId]) d[stepId] = { start:'', end:'' };
+  d[stepId][field] = val;
+  localStorage.setItem('ws_plan_dates', JSON.stringify(d));
+  // refresh worker summary
+  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const workers = window._wsWorkers || getWorkerList();
+  const summaryEl = document.getElementById('ws-worker-summary');
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, getPlanDates(), todayStr());
 }
 
 function wsFilter(f, btn) {
   document.querySelectorAll('.ws-filter').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f);
+  document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f, getPlanDates());
 }
 
-function renderWSPrjCards(projects, stepMap, workers, filter) {
+function renderWSPrjCards(projects, stepMap, workers, filter, planDates) {
+  planDates = planDates || getPlanDates();
   const filtered = projects.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'need') return ['approved','planning'].includes(p.status);
@@ -1202,27 +1150,40 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       const dotColor = isDone ? 'background:var(--green);color:#fff' : s.status==='in_progress' ? 'background:var(--teal);color:#fff' : 'background:#e2e8f0;color:#94a3b8';
       const dotIcon = isDone ? '✓' : s.status==='in_progress' ? '▶' : isLocked ? '🔒' : s.seq;
       const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">กำลังทำ</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : `<span class="status s-planning">รอวางแผน</span>`;
+      const pd = planDates[s.id] || {};
+      const planStart = pd.start || '';
+      const planEnd = pd.end || '';
+      const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
       const planCell = isDone
-        ? `<span style="font-size:12px;color:var(--muted)">${esc(s.assigned_name||'—')}</span>`
+        ? `<div style="font-size:12px;color:var(--muted)">${esc(s.assigned_name||'—')}<br><span style="color:var(--green)">${dateDisplay}</span></div>`
         : s.status==='in_progress'
-        ? `<span style="font-size:12px;color:var(--teal);font-weight:600">${esc(s.assigned_name||'—')}</span>`
+        ? `<div style="font-size:12px;color:var(--teal);font-weight:600">${esc(s.assigned_name||'—')}<br><span style="font-weight:400;color:var(--muted)">${dateDisplay}</span></div>`
         : isLocked
         ? `<span style="font-size:12px;color:#94a3b8">—</span>`
         : s.machine === 'ส่งออก (จัดซื้อ)'
         ? `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`
-        : `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;max-width:150px"
+        : `<div style="display:flex;flex-direction:column;gap:5px">
+            <select id="ws-w-${s.id}" style="padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px"
               onchange="wsAssignWorker('${s.id}','${p.id}',this)">
               <option value="">— เลือกช่าง —</option>
               ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
             </select>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input type="date" value="${planStart}" placeholder="เริ่ม"
+                style="padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px;flex:1;min-width:0"
+                onchange="wsSavePlanDates('${s.id}','start',this.value)">
+              <span style="font-size:11px;color:var(--muted)">–</span>
+              <input type="date" value="${planEnd}" placeholder="สิ้นสุด"
+                style="padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px;flex:1;min-width:0"
+                onchange="wsSavePlanDates('${s.id}','end',this.value)">
+            </div>
            </div>`;
-      return `<div style="display:grid;grid-template-columns:38% 16% 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;${rowBg}">
+      return `<div style="display:grid;grid-template-columns:36% 14% 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:start;${rowBg}">
         <div style="display:flex;align-items:center;gap:9px">
           <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;${dotColor}">${dotIcon}</div>
-          <div><div style="font-size:13px;font-weight:500">${esc(s.step_name)}</div><div style="font-size:11px;color:var(--muted)">${esc(s.part_no||'—')}</div></div>
+          <div><div style="font-size:13px;font-weight:500">${esc(s.step_name)}</div><div style="font-size:11px;color:var(--muted)">${esc(s.part_no||'—')} · ${getStepHours(s)>0?getStepHours(s).toFixed(1)+' ชม.':'—'}</div></div>
         </div>
-        <div>${stepStatus}</div>
+        <div style="padding-top:2px">${stepStatus}</div>
         <div>${planCell}</div>
       </div>`;
     }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
