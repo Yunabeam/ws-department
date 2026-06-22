@@ -1154,11 +1154,24 @@ async function openPlanModal(projId) {
     <b>เพิ่มขั้นตอนที่ ${nextSeq}:</b>
     <div class="form-row" style="margin-top:10px">
       <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส"></div>
-      <div class="form-group"><label>เครื่องจักร</label><input id="ps-machine" placeholder="เช่น CNC001"></div>
+      <div class="form-group"><label>เครื่องจักร</label>
+        <select id="ps-machine" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+          <option value="">— เลือกเครื่องจักร —</option>
+          ${WS_MACHINES.map(m=>`<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Part No.</label><input id="ps-partno" placeholder="Part No."></div>
-      <div class="form-group"><label>เวลาต่อชิ้น (นาที) *</label><input id="ps-time" type="number" min="0.1" step="0.1"></div>
+      <div class="form-group">
+        <label>เวลาต่อชิ้น (นาที)</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400">
+            <input type="checkbox" id="ps-outsource" onchange="toggleOutsource(this.checked)"> ส่งออก (Outsource) — ไม่ระบุเวลา
+          </label>
+        </div>
+        <input id="ps-time" type="number" min="0.1" step="0.1" style="margin-top:6px" placeholder="ระบุเวลา (นาที)">
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>จำนวน *</label><input id="ps-qty" type="number" min="1" value="${p.qty}"></div>
@@ -1170,14 +1183,35 @@ async function openPlanModal(projId) {
   ]);
 }
 
+function toggleOutsource(checked) {
+  const timeInput = document.getElementById('ps-time');
+  const machineSelect = document.getElementById('ps-machine');
+  timeInput.disabled = checked;
+  timeInput.value = checked ? '' : timeInput.value;
+  if (checked) {
+    machineSelect.value = '';
+    machineSelect.disabled = true;
+  } else {
+    machineSelect.disabled = false;
+  }
+}
+
 async function addStep(projId, seq) {
   const name = document.getElementById('ps-name').value.trim();
   const machine = document.getElementById('ps-machine').value.trim();
   const partno = document.getElementById('ps-partno').value.trim();
-  const time = parseFloat(document.getElementById('ps-time').value);
+  const isOutsource = document.getElementById('ps-outsource').checked;
+  const time = isOutsource ? null : parseFloat(document.getElementById('ps-time').value);
   const qty = parseInt(document.getElementById('ps-qty').value);
-  if (!name || !time || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
-  await sb.from('process_steps').insert({ project_id: projId, seq, step_name: name, machine, part_no: partno, time_per_piece: time, qty, notes: document.getElementById('ps-notes').value });
+  if (!name || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+  if (!isOutsource && !time) { showToast('กรุณาระบุเวลาต่อชิ้น หรือติ๊ก "ส่งออก"', 'error'); return; }
+  const notes = document.getElementById('ps-notes').value;
+  await sb.from('process_steps').insert({
+    project_id: projId, seq, step_name: name,
+    machine: isOutsource ? 'ส่งออก (จัดซื้อ)' : machine,
+    part_no: partno, time_per_piece: time, qty,
+    notes: isOutsource ? (notes ? notes + ' [Outsource]' : '[Outsource]') : notes
+  });
   document.getElementById('modal').classList.remove('modal-lg');
   showToast(`เพิ่มขั้นตอนที่ ${seq} แล้ว`, 'success'); closeModal();
   openPlanModal(projId);
