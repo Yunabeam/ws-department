@@ -1530,11 +1530,32 @@ async function confirmStep(stepId, projId) {
 // WS WORKER - MY TASKS
 // ============================================================
 async function renderMyTasks(mc) {
+  const workers = getWorkerList();
+  // ถ้าชื่อ profile ไม่ตรงกับชื่อช่างใน list ให้เลือกเองได้
+  const profileName = currentProfile.full_name;
+  const isWorkerName = workers.includes(profileName);
+  let myName = isWorkerName ? profileName : (localStorage.getItem('ws_selected_worker') || '');
+
+  if (!isWorkerName) {
+    const selVal = myName;
+    mc.innerHTML = `
+      <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
+      <div class="card" style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">เลือกชื่อช่างของคุณ:</label>
+        <select id="worker-self-select" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%"
+          onchange="localStorage.setItem('ws_selected_worker',this.value);renderMyTasks(document.getElementById('main-content'))">
+          <option value="">— เลือกชื่อ —</option>
+          ${workers.map(w=>`<option value="${w}" ${w===selVal?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+      ${myName ? '' : '<div class="card"><div class="empty"><div class="empty-icon">👆</div>กรุณาเลือกชื่อช่างก่อน</div></div>'}
+    `;
+    if (!myName) return;
+  }
+
   const { data: allStepsRaw } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker','confirmed']).order('seq');
-  // กรอง: แสดงเฉพาะ step ที่ถึงคิว = step แรก หรือ step ก่อนหน้า confirmed/done_by_worker แล้ว
   const byProject = {};
   (allStepsRaw||[]).forEach(s => { if (!byProject[s.project_id]) byProject[s.project_id] = []; byProject[s.project_id].push(s); });
-  const myName = currentProfile.full_name;
   const readySteps = (allStepsRaw||[]).filter(s => {
     if (!['assigned','in_progress','done_by_worker'].includes(s.status)) return false;
     if (s.assigned_name !== myName) return false;
