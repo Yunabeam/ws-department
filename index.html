@@ -1023,12 +1023,13 @@ async function renderKPIReport(mc) {
     const myDone = (confirmedSteps||[]).filter(s => s.assigned_name === w);
     const myFails = (failedSteps||[]).filter(s => s.assigned_name === w);
     const late = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline);
+    const lateSelf = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
     const plannedHrs = myDone.reduce((sum, s) => sum + getStepHours(s), 0);
-    const score = Math.max(0, 100 - late.length*5 - myFails.length*10);
+    const score = Math.max(0, 100 - late.length*5 - myFails.length*10 - lateSelf.length*3);
     const grade = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
     const thisMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(thisMonth)).length;
     const lastMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
-    return { w, done: myDone.length, fails: myFails.length, late: late.length, score, grade, plannedHrs, thisMonthDone, lastMonthDone };
+    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, score, grade, plannedHrs, thisMonthDone, lastMonthDone };
   });
 
   const lateProjects = (allProjects||[]).filter(p => p.confirmed_deadline && p.confirmed_deadline < today && p.status !== 'completed');
@@ -1064,12 +1065,13 @@ async function renderKPIReport(mc) {
       <div class="card-header"><span class="card-title">👷 KPI ลูกน้อง (รายบุคคล)</span></div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">สูตร: 100 คะแนน หัก 5/โปรเจคล่าช้า หัก 10/QC Reject · A≥90, B=80–89, C=70–79, D=60–69, F&lt;60</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>คะแนน</th><th>เกรด</th><th>ชม.สะสม</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>คะแนน</th><th>เกรด</th><th>ชม.สะสม</th></tr></thead>
         <tbody>${kpiData.map(k => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
           <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
           <td><span style="color:${k.late>0?'var(--amber)':'var(--green)'}">${k.late}</span></td>
+          <td><span style="color:${k.lateSelf>0?'var(--red)':'var(--green)'}">${k.lateSelf}</span></td>
           <td><b style="color:${gradeColor(k.grade)}">${k.score}</b></td>
           <td><b style="font-size:16px;color:${gradeColor(k.grade)}">${k.grade}</b></td>
           <td>${k.plannedHrs.toFixed(1)} ชม.</td>
@@ -1303,9 +1305,11 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       const rowBg = isDone ? 'background:#f0fdf4' : s.status === 'in_progress' ? 'background:#eff6ff' : isLocked ? 'opacity:.55' : '';
       const dotColor = isDone ? 'background:var(--green);color:#fff' : s.status==='in_progress' ? 'background:var(--teal);color:#fff' : 'background:#e2e8f0;color:#94a3b8';
       const dotIcon = isDone ? '✓' : s.status==='in_progress' ? '▶' : isLocked ? '🔒' : s.seq;
-      const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">กำลังทำ</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : `<span class="status s-planning">รอวางแผน</span>`;
       const planStart = s.planned_start || '';
       const planEnd = s.planned_end || '';
+      const isOverdue = !isDone && planEnd && todayStr() > planEnd;
+      const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">กำลังทำ</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : `<span class="status s-planning">รอวางแผน</span>`;
+      const overdueTag = isOverdue ? `<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:8px;font-weight:600">⚠️ เลยกำหนด</span>` : '';
       const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
       const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
       const planCell = isDone
@@ -1342,7 +1346,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
           <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;${dotColor}">${dotIcon}</div>
           <div><div style="font-size:13px;font-weight:500">${esc(s.step_name)}</div><div style="font-size:11px;color:var(--muted)">${esc(s.part_no||'—')} · ${getStepHours(s)>0?getStepHours(s).toFixed(1)+' ชม.':'—'}</div></div>
         </div>
-        <div style="padding-top:2px">${stepStatus}</div>
+        <div style="padding-top:2px;display:flex;flex-direction:column;gap:3px">${stepStatus}${overdueTag}</div>
         <div>${planCell}</div>
       </div>`;
     }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
@@ -1854,11 +1858,52 @@ async function startTask(stepId) {
 }
 
 async function completeTask(stepId, projId) {
-  const { error } = await sb.from('process_steps').update({ status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
-  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  const today = todayStr();
+  const isLate = step?.planned_end && today > step.planned_end;
+
+  if (isLate) {
+    openModal('⚠️ งานเลยกำหนดแล้ว', `
+      <p style="font-size:14px;margin-bottom:12px">งานนี้ครบกำหนดวันที่ <b>${fmtDate(step.planned_end)}</b> แล้ว กรุณาระบุสาเหตุ:</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-amber" style="text-align:left;padding:12px" onclick="document.getElementById('late-reason-section').style.display='block';document.getElementById('late-self-section').style.display='none'">
+          ⚡ มีงานด่วนแทรก (ไม่หัก KPI)
+        </button>
+        <div id="late-reason-section" style="display:none;padding:8px;background:#fffbeb;border-radius:8px;border:1px solid var(--amber)">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ระบุงานที่มาแทรก:</label>
+          <input id="late-reason-input" placeholder="เช่น งาน PRJ-69-005 เร่งด่วน" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
+          <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="submitCompleteTask('${stepId}','${projId}','urgent')">ยืนยันส่งงาน</button>
+        </div>
+        <button class="btn" style="text-align:left;padding:12px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="document.getElementById('late-self-section').style.display='block';document.getElementById('late-reason-section').style.display='none'">
+          😓 ทำไม่ทันเอง (หัก KPI 3 คะแนน)
+        </button>
+        <div id="late-self-section" style="display:none;padding:8px;background:#fef2f2;border-radius:8px;border:1px solid #fca5a5">
+          <p style="font-size:13px;color:#dc2626;margin-bottom:8px">คะแนน KPI จะถูกหัก 3 คะแนน</p>
+          <button class="btn btn-red" style="width:100%" onclick="submitCompleteTask('${stepId}','${projId}','late_self')">ยืนยันส่งงาน</button>
+        </div>
+      </div>
+    `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
+  } else {
+    await submitCompleteTask(stepId, projId, null);
+  }
+}
+
+async function submitCompleteTask(stepId, projId, reason) {
+  const reasonNote = reason === 'urgent'
+    ? `[งานด่วนแทรก: ${document.getElementById('late-reason-input')?.value || '-'}]`
+    : reason === 'late_self' ? '[ทำไม่ทันเอง]' : null;
+  const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  const newNotes = reasonNote ? ((step?.notes ? step.notes + ' ' : '') + reasonNote) : step?.notes;
+  const { error } = await sb.from('process_steps').update({
+    status: 'done_by_worker',
+    worker_confirmed_at: new Date().toISOString(),
+    notes: newNotes || step?.notes,
+  }).eq('id', stepId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  closeModal();
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
-  if (p) await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step?.seq}: ${step?.step_name} โดย ${currentProfile.full_name}`, projId);
+  const lateMsg = reason === 'late_self' ? ' (ทำไม่ทันเอง)' : reason === 'urgent' ? ' (งานด่วนแทรก)' : '';
+  if (p) await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step?.seq}: ${step?.step_name} โดย ${currentProfile.full_name}${lateMsg}`, projId);
   showToast('ยืนยันงานเสร็จแล้ว', 'success'); navigateTo('my-tasks');
 }
 
