@@ -1069,6 +1069,12 @@ async function renderWSStatusPlan(mc) {
       <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
     </div>
     <div id="ws-worker-summary">${workerSummaryHtml}</div>
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="wsShiftDay(-1)">◀</button>
+      <input type="date" id="ws-summary-date" value="${today}" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px" onchange="wsRefreshSummary(this.value)">
+      <button class="btn btn-ghost btn-sm" onclick="wsShiftDay(1)">▶</button>
+      <button class="btn btn-ghost btn-sm" onclick="wsRefreshSummary('${today}');document.getElementById('ws-summary-date').value='${today}'">วันนี้</button>
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
@@ -1090,41 +1096,30 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today) {
       return dateInRange(today, s.planned_start, s.planned_end);
     });
     const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
-    return { w, tasks, hrs };
-  }).filter(d => d.tasks.length > 0);
+    const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + getStepHours(s), 0);
+    const allDone = tasks.length > 0 && tasks.every(s => ['confirmed','done_by_worker'].includes(s.status));
+    return { w, tasks, hrs, doneHrs, allDone };
+  });
 
-  if (!workerData.length) return `
-    <div style="margin-bottom:16px;padding:10px 14px;background:#f8fafc;border-radius:8px;font-size:13px;color:var(--muted)">
-      📅 ยังไม่มีงานที่วางแผนสำหรับวันนี้ (${fmtDate(today)})
-    </div>`;
-
-  const cards = workerData.map(({w, tasks, hrs}) => {
-    const doneTasks = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status));
-    const pendingTasks = tasks.filter(s => !['confirmed','done_by_worker'].includes(s.status));
-    const doneHrs = doneTasks.reduce((sum, s) => sum + getStepHours(s), 0);
-    const allDone = pendingTasks.length === 0;
-    const cardBg = allDone ? 'background:#f0fdf4;border:1.5px solid var(--green)' : '';
-    const taskList = tasks.map(s => {
-      const isDone = ['confirmed','done_by_worker'].includes(s.status);
-      const icon = s.status === 'confirmed' ? '✅' : s.status === 'done_by_worker' ? '⏳' : s.status === 'in_progress' ? '▶️' : '○';
-      const textColor = isDone ? 'color:#16a34a' : s.status === 'in_progress' ? 'color:var(--teal)' : 'color:#374151';
-      const textDecor = s.status === 'confirmed' ? 'text-decoration:line-through;opacity:.6' : '';
-      return `<div style="font-size:11px;padding:4px 0;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:5px">
-        <span>${icon}</span>
-        <span style="${textColor};${textDecor};flex:1">${s.seq}. ${esc(s.step_name)}</span>
-        ${s.status === 'done_by_worker' ? `<span style="font-size:10px;color:var(--amber);font-weight:600">รอยืนยัน</span>` : ''}
-      </div>`;
-    }).join('');
-    return `<div class="card" style="padding:12px;min-width:180px;flex:1;max-width:280px;${cardBg}">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+  const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone}) => {
+    const hasWork = tasks.length > 0;
+    const isFull = hrs >= 8;
+    const cardBg = allDone ? 'background:#f0fdf4;border:1.5px solid var(--green)' : isFull ? 'background:#fff7ed;border:1.5px solid var(--amber)' : hasWork ? 'border:1.5px solid var(--border)' : 'background:#f8fafc;border:1.5px solid #e2e8f0';
+    const barColor = allDone ? 'var(--green)' : doneHrs > 0 ? 'var(--teal)' : isFull ? 'var(--amber)' : 'var(--primary)';
+    const barWidth = hasWork ? Math.min(hrs / 8 * 100, 100) : 0;
+    return `<div style="padding:10px 12px;border-radius:10px;min-width:120px;flex:1;${cardBg}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span style="font-size:13px;font-weight:700">${esc(w)}</span>
-        ${allDone ? `<span style="font-size:11px;background:var(--green);color:#fff;padding:1px 7px;border-radius:10px">เสร็จแล้ว</span>` : ''}
+        ${allDone ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px">เสร็จ</span>`
+          : isFull ? `<span style="font-size:10px;background:var(--amber);color:#fff;padding:1px 6px;border-radius:8px">เต็ม</span>`
+          : ''}
       </div>
-      <div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:4px;overflow:hidden">
-        <div style="height:100%;background:${allDone?'var(--green)':doneHrs>0?'var(--teal)':'#d1d5db'};width:${allDone?100:Math.min(doneHrs/hrs*100,100)}%;border-radius:3px;transition:.3s"></div>
+      <div style="height:5px;background:#e2e8f0;border-radius:3px;margin-bottom:5px;overflow:hidden">
+        <div style="height:100%;background:${barColor};width:${barWidth}%;border-radius:3px"></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${doneHrs.toFixed(1)} / ${hrs.toFixed(1)} ชม. · ${doneTasks.length}/${tasks.length} งาน</div>
-      ${taskList}
+      <div style="font-size:12px;color:${isFull&&!allDone?'var(--amber)':hasWork?'var(--teal)':'var(--muted)'}">
+        ${hasWork ? `${hrs.toFixed(1)} ชม. · ${tasks.length} งาน` : `ว่าง`}
+      </div>
     </div>`;
   }).join('');
 
@@ -1133,6 +1128,25 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today) {
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ภาพรวมช่างวันนี้ · ${fmtDate(today)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>
     </div>`;
+}
+
+function wsRefreshSummary(dateStr) {
+  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const workers = window._wsWorkers || getWorkerList();
+  const el = document.getElementById('ws-worker-summary');
+  if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr);
+  const input = document.getElementById('ws-summary-date');
+  if (input) input.value = dateStr;
+}
+
+function wsShiftDay(delta) {
+  const input = document.getElementById('ws-summary-date');
+  if (!input) return;
+  const d = new Date(input.value);
+  d.setDate(d.getDate() + delta);
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  const newDate = `${y}-${m}-${day}`;
+  wsRefreshSummary(newDate);
 }
 
 async function wsSavePlanDates(stepId, field, val) {
