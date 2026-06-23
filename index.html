@@ -1004,33 +1004,89 @@ async function sendToWorkers(projId) {
 // KPI REPORT (eng_manager)
 // ============================================================
 async function renderKPIReport(mc) {
-  mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI ลูกน้อง WS</div></div><div class="card"><div class="spinner"></div></div>`;
+  mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
   const workers = getWorkerList();
-  const kpiData = [];
-  for (const workerName of workers) {
-    const [{ count: done }, { count: fails }] = await Promise.all([
-      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_name',workerName).eq('status','confirmed'),
-      sb.from('process_steps').select('*',{count:'exact',head:true}).eq('assigned_name',workerName).eq('status','failed_qc'),
-    ]);
-    const score = Math.max(0, 100 - (fails||0)*10);
-    kpiData.push({ name: workerName, done: done||0, fails: fails||0, score });
-  }
-  const maxDone = Math.max(...kpiData.map(k => k.done), 1);
+  const today = todayStr();
+  const thisMonth = today.substring(0, 7);
+  const lmDate = new Date(today); lmDate.setMonth(lmDate.getMonth() - 1);
+  const lastMonth = `${lmDate.getFullYear()}-${String(lmDate.getMonth()+1).padStart(2,'0')}`;
+
+  const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }] = await Promise.all([
+    sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed'),
+    sb.from('process_steps').select('*').eq('status','failed_qc'),
+    sb.from('projects').select('id,status,confirmed_deadline').not('status','in','("pending_eng","pending_executive","rejected")'),
+  ]);
+
+  const gradeColor = g => g==='A'?'var(--green)':g==='B'?'var(--teal)':g==='C'?'var(--amber)':g==='D'?'orange':'var(--red)';
+
+  const kpiData = workers.map(w => {
+    const myDone = (confirmedSteps||[]).filter(s => s.assigned_name === w);
+    const myFails = (failedSteps||[]).filter(s => s.assigned_name === w);
+    const late = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline);
+    const plannedHrs = myDone.reduce((sum, s) => sum + getStepHours(s), 0);
+    const score = Math.max(0, 100 - late.length*5 - myFails.length*10);
+    const grade = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
+    const thisMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(thisMonth)).length;
+    const lastMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
+    return { w, done: myDone.length, fails: myFails.length, late: late.length, score, grade, plannedHrs, thisMonthDone, lastMonthDone };
+  });
+
+  const lateProjects = (allProjects||[]).filter(p => p.confirmed_deadline && p.confirmed_deadline < today && p.status !== 'completed');
+  const completedProjects = (allProjects||[]).filter(p => p.status === 'completed');
+  const deadlineRate = completedProjects.length ? Math.round((completedProjects.length - lateProjects.length) / Math.max(completedProjects.length,1) * 100) : 100;
+  const totalQCFails = (failedSteps||[]).length;
+
   mc.innerHTML = `
-    <div class="section-header"><div class="section-title">📈 รายงาน KPI ลูกน้อง WS</div></div>
-    <div class="card">
+    <div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><span class="card-title">🎯 KPI หัวหน้า WS</span></div>
+      <div class="stats-grid" style="margin-top:12px">
+        <div class="stat-card">
+          <div class="stat-num" style="color:${deadlineRate>=95?'var(--green)':'var(--red)'}">${deadlineRate}%</div>
+          <div class="stat-label">งานทีมทันเดดไลน์</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">เป้า ≥ 95%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color:${totalQCFails===0?'var(--green)':'var(--red)'}">${totalQCFails}</div>
+          <div class="stat-label">QC Fail ในทีม</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">เป้า = 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color:${lateProjects.length===0?'var(--green)':'var(--red)'}">${lateProjects.length}</div>
+          <div class="stat-label">โปรเจคเลย Deadline</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">ที่ยังค้างอยู่</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><span class="card-title">👷 KPI ลูกน้อง (รายบุคคล)</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">สูตร: 100 คะแนน หัก 5/โปรเจคล่าช้า หัก 10/QC Reject · A≥90, B=80–89, C=70–79, D=60–69, F&lt;60</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>คะแนน</th><th>ประสิทธิภาพ</th></tr></thead>
-        <tbody>${kpiData.map(k => `
-          <tr>
-            <td><b>${esc(k.name)}</b></td>
-            <td>${k.done}</td>
-            <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
-            <td><b style="color:${k.score>=80?'var(--green)':k.score>=60?'var(--amber)':'var(--red)'}">${k.score}</b></td>
-            <td style="min-width:150px">
-              <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${(k.done/maxDone*100).toFixed(0)}%"></div></div>
-            </td>
-          </tr>`).join('')}
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>คะแนน</th><th>เกรด</th><th>ชม.สะสม</th></tr></thead>
+        <tbody>${kpiData.map(k => `<tr>
+          <td><b>${esc(k.w)}</b></td>
+          <td>${k.done}</td>
+          <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
+          <td><span style="color:${k.late>0?'var(--amber)':'var(--green)'}">${k.late}</span></td>
+          <td><b style="color:${gradeColor(k.grade)}">${k.score}</b></td>
+          <td><b style="font-size:16px;color:${gradeColor(k.grade)}">${k.grade}</b></td>
+          <td>${k.plannedHrs.toFixed(1)} ชม.</td>
+        </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">📅 Trend รายเดือน (งานเสร็จ)</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ชื่อ</th><th>เดือนที่แล้ว</th><th>เดือนนี้</th><th>เทียบ</th></tr></thead>
+        <tbody>${kpiData.map(k => {
+          const diff = k.thisMonthDone - k.lastMonthDone;
+          const trend = diff>0?`<span style="color:var(--green)">▲ +${diff}</span>`:diff<0?`<span style="color:var(--red)">▼ ${diff}</span>`:`<span style="color:var(--muted)">— เท่าเดิม</span>`;
+          return `<tr><td><b>${esc(k.w)}</b></td><td>${k.lastMonthDone}</td><td>${k.thisMonthDone}</td><td>${trend}</td></tr>`;
+        }).join('')}
         </tbody>
       </table></div>
     </div>
