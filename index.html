@@ -1861,10 +1861,12 @@ async function completeTask(stepId, projId) {
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
   const today = todayStr();
   const isLate = step?.planned_end && today > step.planned_end;
+  const deadlineText = step?.planned_end ? `กำหนดส่ง: <b>${fmtDate(step.planned_end)}</b>` : 'ยังไม่มีกำหนดส่ง';
 
   if (isLate) {
-    openModal('⚠️ งานเลยกำหนดแล้ว', `
-      <p style="font-size:14px;margin-bottom:12px">งานนี้ครบกำหนดวันที่ <b>${fmtDate(step.planned_end)}</b> แล้ว กรุณาระบุสาเหตุ:</p>
+    openModal('แจ้งสถานะงาน', `
+      <p style="font-size:14px;margin-bottom:4px">${deadlineText}</p>
+      <p style="font-size:13px;color:var(--red);margin-bottom:12px">⚠️ เลยกำหนดแล้ว กรุณาระบุสาเหตุ:</p>
       <div style="display:flex;flex-direction:column;gap:10px">
         <button class="btn btn-amber" style="text-align:left;padding:12px" onclick="document.getElementById('late-reason-section').style.display='block';document.getElementById('late-self-section').style.display='none'">
           ⚡ มีงานด่วนแทรก (ไม่หัก KPI)
@@ -1884,7 +1886,11 @@ async function completeTask(stepId, projId) {
       </div>
     `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
   } else {
-    await submitCompleteTask(stepId, projId, null);
+    openModal('แจ้งสถานะงาน', `
+      <p style="font-size:14px;margin-bottom:4px">${deadlineText}</p>
+      <p style="font-size:13px;color:var(--green);margin-bottom:16px">✅ ทำทันกำหนด</p>
+      <button class="btn btn-green" style="width:100%;padding:12px" onclick="submitCompleteTask('${stepId}','${projId}',null)">ยืนยันส่งงานให้หัวหน้า WS</button>
+    `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
   }
 }
 
