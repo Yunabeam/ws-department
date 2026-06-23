@@ -1111,35 +1111,33 @@ function openAddUserModal() {
     { value:'executive', label:'ผู้บริหาร' },
   ];
   openModal('เพิ่มผู้ใช้ใหม่', `
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">ชื่อ-นามสกุล *</label>
-          <input id="um-name" class="form-input" placeholder="เช่น สมชาย ใจดี" style="width:100%;font-size:15px;padding:10px 12px">
-        </div>
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">สิทธิ์การใช้งาน *</label>
-          <select id="um-role" class="form-input" style="width:100%;font-size:15px;padding:10px 12px">
-            ${ROLE_OPTIONS.map(r=>`<option value="${r.value}">${r.label}</option>`).join('')}
-          </select>
-        </div>
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div>
+        <label style="font-size:16px;font-weight:600;display:block;margin-bottom:8px">ชื่อ-นามสกุล *</label>
+        <input id="um-name" class="form-input" placeholder="เช่น สมชาย ใจดี" style="width:100%;font-size:18px;padding:14px 16px;border-radius:10px">
       </div>
       <div>
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">อีเมล (ใช้ login) *</label>
-        <input id="um-email" class="form-input" type="email" placeholder="email@example.com" style="width:100%;font-size:15px;padding:10px 12px">
+        <label style="font-size:16px;font-weight:600;display:block;margin-bottom:8px">อีเมล (ใช้ login) *</label>
+        <input id="um-email" class="form-input" type="email" placeholder="email@example.com" style="width:100%;font-size:18px;padding:14px 16px;border-radius:10px">
       </div>
       <div>
-        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">รหัสผ่าน *</label>
+        <label style="font-size:16px;font-weight:600;display:block;margin-bottom:8px">รหัสผ่าน *</label>
         <div style="position:relative">
-          <input id="um-pass" class="form-input" type="password" placeholder="รหัสผ่าน" style="width:100%;font-size:15px;padding:10px 40px 10px 12px">
-          <button type="button" onclick="const i=document.getElementById('um-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px">👁</button>
+          <input id="um-pass" class="form-input" type="password" placeholder="รหัสผ่าน" style="width:100%;font-size:18px;padding:14px 50px 14px 16px;border-radius:10px">
+          <button type="button" onclick="const i=document.getElementById('um-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:22px">👁</button>
         </div>
       </div>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;background:var(--surface-2);border-radius:8px">
-        <input type="checkbox" id="um-super" style="width:18px;height:18px;cursor:pointer">
-        <span style="font-size:14px;font-weight:500">★ SuperAdmin <span style="font-weight:400;color:var(--text-secondary)">(จัดการผู้ใช้ได้)</span></span>
+      <div>
+        <label style="font-size:16px;font-weight:600;display:block;margin-bottom:8px">สิทธิ์การใช้งาน *</label>
+        <select id="um-role" class="form-input" style="width:100%;font-size:18px;padding:14px 16px;border-radius:10px">
+          ${ROLE_OPTIONS.map(r=>`<option value="${r.value}">${r.label}</option>`).join('')}
+        </select>
+      </div>
+      <label style="display:flex;align-items:center;gap:14px;cursor:pointer;padding:14px 16px;background:var(--surface-2);border-radius:10px">
+        <input type="checkbox" id="um-super" style="width:24px;height:24px;cursor:pointer">
+        <span style="font-size:16px;font-weight:500">★ SuperAdmin <span style="font-weight:400;color:var(--text-secondary)">(จัดการผู้ใช้ได้)</span></span>
       </label>
-      <div id="um-error" style="color:#dc2626;font-size:13px;background:#fef2f2;padding:8px 12px;border-radius:6px;display:none"></div>
+      <div id="um-error" style="color:#dc2626;font-size:14px;background:#fef2f2;padding:10px 14px;border-radius:8px;display:none"></div>
     </div>
   `, [
     { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
