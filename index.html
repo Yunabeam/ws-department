@@ -1260,7 +1260,7 @@ async function wsSetPlanToday(stepId, projId) {
     if (s) { s.planned_start = today; s.planned_end = null; }
   }
   showToast('วางแผนแล้ว ✅', 'success');
-  navigateTo('ws-status-plan');
+  wsRefreshCard(projId);
 }
 
 async function wsClearPlanDate(stepId, projId) {
@@ -1269,10 +1269,30 @@ async function wsClearPlanDate(stepId, projId) {
     const s = steps.find(x => x.id === stepId);
     if (s) { s.planned_start = null; s.planned_end = null; }
   }
-  navigateTo('ws-status-plan');
+  wsRefreshCard(projId);
+}
+
+function wsRefreshCard(projId) {
+  // re-render only the affected project card without collapsing the page
+  const cardEl = document.getElementById('wsc-' + projId);
+  if (!cardEl) return;
+  const p = (window._wsProjects||[]).find(x => x.id === projId);
+  const steps = window._wsStepMap?.[projId] || [];
+  if (!p) return;
+  const newCard = renderWSPrjCards([p], { [projId]: steps }, window._wsWorkers || getWorkerList(), window._wsCurrentFilter || 'all');
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = newCard;
+  const newCardEl = wrapper.firstElementChild;
+  if (newCardEl) cardEl.replaceWith(newCardEl);
+  // refresh worker summary
+  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const workers = window._wsWorkers || getWorkerList();
+  const summaryEl = document.getElementById('ws-worker-summary');
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
 }
 
 function wsFilter(f, btn) {
+  window._wsCurrentFilter = f;
   document.querySelectorAll('.ws-filter').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('ws-prj-list').innerHTML = renderWSPrjCards(window._wsProjects, window._wsStepMap, window._wsWorkers, f);
