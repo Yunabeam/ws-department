@@ -642,9 +642,10 @@ function setupRealtime() {
 // DASHBOARD (eng_manager)
 // ============================================================
 async function renderDashboard(mc) {
-  const [{ data: projs }, { data: steps }] = await Promise.all([
+  const [{ data: projs }, { data: steps }, { data: allActive }] = await Promise.all([
     sb.from('projects').select('status,priority'),
-    sb.from('process_steps').select('status')
+    sb.from('process_steps').select('status'),
+    sb.from('projects').select('*').not('status', 'in', '("completed","rejected")').not('confirmed_deadline', 'is', null),
   ]);
   const p = projs || [], s = steps || [];
   const counts = {
@@ -656,6 +657,33 @@ async function renderDashboard(mc) {
     rejected: p.filter(x => x.status === 'rejected').length,
     urgent: p.filter(x => x.priority === 'very_urgent' && !['completed','rejected'].includes(x.status)).length,
   };
+  const today = todayStr();
+  const in7days = new Date(); in7days.setDate(in7days.getDate() + 7);
+  const in7Str = `${in7days.getFullYear()}-${String(in7days.getMonth()+1).padStart(2,'0')}-${String(in7days.getDate()).padStart(2,'0')}`;
+  const overdue = (allActive||[]).filter(x => x.confirmed_deadline < today);
+  const nearDeadline = (allActive||[]).filter(x => x.confirmed_deadline >= today && x.confirmed_deadline <= in7Str);
+
+  const deadlineAlert = (overdue.length || nearDeadline.length) ? `
+    <div class="card" style="margin-bottom:16px;border-left:4px solid var(--red)">
+      <div class="card-header"><span class="card-title" style="color:var(--red)">⚠️ แจ้งเตือน Deadline</span></div>
+      ${overdue.length ? `
+        <div style="margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">เลย Deadline แล้ว (${overdue.length} โปรเจค)</div>
+          ${overdue.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);font-size:13px">
+            <span><b>${esc(x.project_no||'')}</b> ${esc(x.name)}</span>
+            <span style="color:var(--red);font-weight:600">${fmtDate(x.confirmed_deadline)}</span>
+          </div>`).join('')}
+        </div>` : ''}
+      ${nearDeadline.length ? `
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">ใกล้ถึง Deadline (ภายใน 7 วัน)</div>
+          ${nearDeadline.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);font-size:13px">
+            <span><b>${esc(x.project_no||'')}</b> ${esc(x.name)}</span>
+            <span style="color:var(--amber);font-weight:600">${fmtDate(x.confirmed_deadline)}</span>
+          </div>`).join('')}
+        </div>` : ''}
+    </div>` : '';
+
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📊 ภาพรวม</div><div class="section-sub">สรุปสถานะงานทั้งหมด</div></div>
     <div class="stats-grid">
@@ -667,6 +695,7 @@ async function renderDashboard(mc) {
       <div class="stat-card"><div class="stat-num" style="color:var(--muted)">${counts.rejected}</div><div class="stat-label">ปฏิเสธ</div></div>
       <div class="stat-card"><div class="stat-num" style="color:var(--red)">${counts.urgent}</div><div class="stat-label">งานเร่งด่วนมาก</div></div>
     </div>
+    ${deadlineAlert}
     <div class="card">
       <div class="card-header"><span class="card-title">โปรเจคล่าสุด</span></div>
       <div id="dash-recent"></div>
