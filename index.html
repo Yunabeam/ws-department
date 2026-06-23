@@ -385,6 +385,22 @@ async function init() {
 }
 
 async function loadProfile() {
+  // Try app_users first (new auth), fall back to profiles
+  const { data: appUser } = await sb.from('app_users').select('*').eq('email', currentUser.email).single();
+  if (appUser) {
+    currentProfile = {
+      id: appUser.id,
+      email: appUser.email,
+      full_name: appUser.full_name,
+      role: appUser.role,
+      is_super_admin: appUser.is_super_admin,
+      is_active: appUser.is_active,
+    };
+    currentUser.id = appUser.id;
+    currentUser.is_super_admin = appUser.is_super_admin;
+    return;
+  }
+  // Legacy fallback: profiles table
   const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   currentProfile = data;
 }
@@ -399,14 +415,38 @@ async function doLogin() {
   if (!email || !pass) { showLoginError('กรุณากรอกข้อมูลให้ครบ'); return; }
   btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
 
+  // Check app_users table first
+  const { data: appUser } = await sb.from('app_users').select('*').eq('email', email).single();
+  if (appUser) {
+    if (!appUser.is_active) {
+      showLoginError('บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อ Admin');
+      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+      return;
+    }
+    if (appUser.password !== pass) {
+      showLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+      return;
+    }
+    currentUser = { id: appUser.id, email, is_super_admin: appUser.is_super_admin };
+    localStorage.setItem('ws_session', JSON.stringify(currentUser));
+    await loadProfile();
+    if (!currentProfile) {
+      showLoginError('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin');
+      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+      return;
+    }
+    showApp();
+    return;
+  }
+  // Fallback: USERS_DB
   const user = USERS_DB[email];
   if (!user || user.password !== pass) {
     showLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
     btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
     return;
   }
-
-  currentUser = { id: user.id, email };
+  currentUser = { id: user.id, email, is_super_admin: !!user.superAdmin };
   localStorage.setItem('ws_session', JSON.stringify(currentUser));
   await loadProfile();
   if (!currentProfile) {
@@ -445,7 +485,7 @@ async function showApp() {
   document.getElementById('user-name-display').textContent = currentProfile.full_name;
   document.getElementById('role-badge-display').textContent = ROLE_LABELS[currentProfile.role] || currentProfile.role;
   // Show role switcher for super admin
-  const isSuperAdmin = USERS_DB[currentUser.email]?.superAdmin;
+  const isSuperAdmin = !!(currentUser.is_super_admin || currentProfile?.is_super_admin);
   const switcher = document.getElementById('role-switcher');
   if (isSuperAdmin) {
     switcher.style.display = 'block';
@@ -487,6 +527,7 @@ const NAV_ITEMS = {
     { id:'pending-approvals', icon:'📋', label:'ใบคำร้องรออนุมัติ' },
     { id:'all-projects', icon:'📁', label:'โปรเจคทั้งหมด' },
     { id:'kpi-report', icon:'📈', label:'รายงาน KPI' },
+    { id:'manage-users', icon:'👤', label:'จัดการผู้ใช้', superAdminOnly: true },
   ],
   ws_manager: [
     { id:'ws-status-plan', icon:'📋', label:'สถานะ & วางแผน', badge:'need-plan-badge' },
@@ -511,7 +552,8 @@ const NAV_ITEMS = {
 };
 
 function buildSidebar() {
-  const items = NAV_ITEMS[currentProfile.role] || [];
+  const isSA = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+  const items = (NAV_ITEMS[currentProfile.role] || []).filter(i => !i.superAdminOnly || isSA);
   const nav = document.getElementById('sidebar-nav');
   nav.innerHTML = items.map(i => `
     <div class="nav-item" id="nav-${i.id}" onclick="navigateTo('${i.id}')">
@@ -561,6 +603,7 @@ async function navigateTo(page, silent = false) {
       case 'qc-queue': await renderQCQueue(mc); break;
       case 'qc-history': await renderQCHistory(mc); break;
       case 'exec-approvals': await renderExecApprovals(mc); break;
+      case 'manage-users': await renderUserManagement(mc); break;
       default: mc.innerHTML = '<div class="card"><p>ไม่พบหน้านี้</p></div>';
     }
   } catch(e) {
@@ -812,7 +855,7 @@ async function engReject(id) {
 async function renderAllProjects(mc) {
   const { data } = await sb.from('projects').select('*').order('created_at', { ascending: false });
   window._allProjects = data || [];
-  window._isSuperAdmin = !!(USERS_DB[currentUser?.email]?.superAdmin);
+  window._isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📁 โปรเจคทั้งหมด</div></div>
     <div class="card">
@@ -834,7 +877,7 @@ function filterProjects(q) {
 
 function renderProjectTable(rows) {
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
-  const isSuperAdmin = window._isSuperAdmin || !!(USERS_DB[currentUser?.email]?.superAdmin);
+  const isSuperAdmin = window._isSuperAdmin || !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   return `<div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr></thead>
     <tbody>${rows.map(r => `
@@ -1002,6 +1045,180 @@ async function sendToWorkers(projId) {
 
 // ============================================================
 // KPI REPORT (eng_manager)
+// ============================================================
+// USER MANAGEMENT (superAdmin only)
+// ============================================================
+async function renderUserManagement(mc) {
+  mc.innerHTML = `<div class="section-header"><div class="section-title">👤 จัดการผู้ใช้</div></div><div class="card"><div class="spinner"></div></div>`;
+  const { data: users, error } = await sb.from('app_users').select('*').order('created_at');
+  if (error) { mc.innerHTML = `<div class="card" style="color:red">Error: ${error.message}</div>`; return; }
+  const ROLE_OPTIONS = [
+    { value:'eng_manager', label:'หัวหน้าวิศวกรรม' },
+    { value:'ws_manager', label:'หัวหน้า WS' },
+    { value:'ws_worker', label:'ช่าง WS' },
+    { value:'qc', label:'QC' },
+    { value:'user', label:'ผู้ใช้ทั่วไป' },
+    { value:'executive', label:'ผู้บริหาร' },
+  ];
+  const roleLabel = r => (ROLE_OPTIONS.find(x=>x.value===r)||{label:r}).label;
+  mc.innerHTML = `
+    <div class="section-header">
+      <div class="section-title">👤 จัดการผู้ใช้</div>
+      <button class="btn btn-blue" onclick="openAddUserModal()">+ เพิ่มผู้ใช้</button>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);text-align:left">
+            <th style="padding:10px 8px">ชื่อ</th>
+            <th style="padding:10px 8px">อีเมล</th>
+            <th style="padding:10px 8px">สิทธิ์</th>
+            <th style="padding:10px 8px">สถานะ</th>
+            <th style="padding:10px 8px">Admin</th>
+            <th style="padding:10px 8px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(users||[]).map(u => `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 8px;font-weight:500">${u.full_name}</td>
+              <td style="padding:10px 8px;color:var(--text-secondary)">${u.email}</td>
+              <td style="padding:10px 8px"><span style="background:var(--surface-2);padding:2px 8px;border-radius:10px;font-size:12px">${roleLabel(u.role)}</span></td>
+              <td style="padding:10px 8px">
+                <span style="color:${u.is_active?'#16a34a':'#dc2626'};font-weight:500">${u.is_active?'ใช้งานได้':'ระงับ'}</span>
+              </td>
+              <td style="padding:10px 8px">${u.is_super_admin?'<span style="color:#d97706;font-weight:600">★ SuperAdmin</span>':''}</td>
+              <td style="padding:10px 8px;display:flex;gap:6px">
+                <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:none;cursor:pointer" onclick="openEditUserModal(${JSON.stringify(JSON.stringify(u))})">✏️ แก้ไข</button>
+                ${u.email !== currentUser.email ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteUser('${u.id}','${u.full_name}')">🗑️</button>` : ''}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openAddUserModal() {
+  const ROLE_OPTIONS = [
+    { value:'eng_manager', label:'หัวหน้าวิศวกรรม' },
+    { value:'ws_manager', label:'หัวหน้า WS' },
+    { value:'ws_worker', label:'ช่าง WS' },
+    { value:'qc', label:'QC' },
+    { value:'user', label:'ผู้ใช้ทั่วไป' },
+    { value:'executive', label:'ผู้บริหาร' },
+  ];
+  openModal('เพิ่มผู้ใช้ใหม่', `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">ชื่อ-นามสกุล</label>
+        <input id="um-name" class="form-input" placeholder="ชื่อ-นามสกุล" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">อีเมล</label>
+        <input id="um-email" class="form-input" type="email" placeholder="email@example.com" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">รหัสผ่าน</label>
+        <input id="um-pass" class="form-input" type="text" placeholder="รหัสผ่าน" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">สิทธิ์การใช้งาน</label>
+        <select id="um-role" class="form-input" style="width:100%">
+          ${ROLE_OPTIONS.map(r=>`<option value="${r.value}">${r.label}</option>`).join('')}
+        </select></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="um-super" style="width:16px;height:16px">
+        <label for="um-super" style="font-size:13px;font-weight:600">SuperAdmin (จัดการผู้ใช้ได้)</label>
+      </div>
+      <div id="um-error" style="color:#dc2626;font-size:13px;display:none"></div>
+    </div>
+  `, [
+    { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
+    { label:'เพิ่มผู้ใช้', cls:'btn-blue', action: saveNewUser },
+  ]);
+}
+
+async function saveNewUser() {
+  const name = document.getElementById('um-name').value.trim();
+  const email = document.getElementById('um-email').value.trim().toLowerCase();
+  const pass = document.getElementById('um-pass').value;
+  const role = document.getElementById('um-role').value;
+  const isSA = document.getElementById('um-super').checked;
+  const errEl = document.getElementById('um-error');
+  if (!name||!email||!pass) { errEl.textContent='กรุณากรอกข้อมูลให้ครบ'; errEl.style.display='block'; return; }
+  const { error } = await sb.from('app_users').insert({ email, password: pass, full_name: name, role, is_super_admin: isSA });
+  if (error) { errEl.textContent=error.message; errEl.style.display='block'; return; }
+  closeModal();
+  showToast('เพิ่มผู้ใช้แล้ว ✅', 'success');
+  navigateTo('manage-users');
+}
+
+function openEditUserModal(jsonStr) {
+  const u = JSON.parse(jsonStr);
+  const ROLE_OPTIONS = [
+    { value:'eng_manager', label:'หัวหน้าวิศวกรรม' },
+    { value:'ws_manager', label:'หัวหน้า WS' },
+    { value:'ws_worker', label:'ช่าง WS' },
+    { value:'qc', label:'QC' },
+    { value:'user', label:'ผู้ใช้ทั่วไป' },
+    { value:'executive', label:'ผู้บริหาร' },
+  ];
+  openModal('แก้ไขผู้ใช้', `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">ชื่อ-นามสกุล</label>
+        <input id="um-name" class="form-input" value="${u.full_name}" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">อีเมล</label>
+        <input id="um-email" class="form-input" type="email" value="${u.email}" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
+        <input id="um-pass" class="form-input" type="text" placeholder="รหัสผ่านใหม่" style="width:100%"></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">สิทธิ์การใช้งาน</label>
+        <select id="um-role" class="form-input" style="width:100%">
+          ${ROLE_OPTIONS.map(r=>`<option value="${r.value}" ${r.value===u.role?'selected':''}>${r.label}</option>`).join('')}
+        </select></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="um-super" ${u.is_super_admin?'checked':''} style="width:16px;height:16px">
+        <label for="um-super" style="font-size:13px;font-weight:600">SuperAdmin</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="um-active" ${u.is_active?'checked':''} style="width:16px;height:16px">
+        <label for="um-active" style="font-size:13px;font-weight:600">เปิดใช้งาน</label>
+      </div>
+      <div id="um-error" style="color:#dc2626;font-size:13px;display:none"></div>
+    </div>
+  `, [
+    { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
+    { label:'บันทึก', cls:'btn-blue', action: () => saveEditUser(u.id) },
+  ]);
+}
+
+async function saveEditUser(userId) {
+  const name = document.getElementById('um-name').value.trim();
+  const email = document.getElementById('um-email').value.trim().toLowerCase();
+  const pass = document.getElementById('um-pass').value;
+  const role = document.getElementById('um-role').value;
+  const isSA = document.getElementById('um-super').checked;
+  const isActive = document.getElementById('um-active').checked;
+  const errEl = document.getElementById('um-error');
+  if (!name||!email) { errEl.textContent='กรุณากรอกชื่อและอีเมล'; errEl.style.display='block'; return; }
+  const updates = { full_name: name, email, role, is_super_admin: isSA, is_active: isActive };
+  if (pass) updates.password = pass;
+  const { error } = await sb.from('app_users').update(updates).eq('id', userId);
+  if (error) { errEl.textContent=error.message; errEl.style.display='block'; return; }
+  closeModal();
+  showToast('บันทึกแล้ว ✅', 'success');
+  navigateTo('manage-users');
+}
+
+function confirmDeleteUser(userId, name) {
+  openModal('ยืนยันการลบ', `<p>ต้องการลบผู้ใช้ <strong>${name}</strong> ออกจากระบบ?</p>`, [
+    { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
+    { label:'🗑️ ลบ', cls:'btn-red', action: () => deleteUser(userId) },
+  ]);
+}
+
+async function deleteUser(userId) {
+  closeModal();
+  const { error } = await sb.from('app_users').delete().eq('id', userId);
+  if (error) { showToast('ลบไม่สำเร็จ: '+error.message, 'error'); return; }
+  showToast('ลบผู้ใช้แล้ว', 'success');
+  navigateTo('manage-users');
+}
+
 // ============================================================
 async function renderKPIReport(mc) {
   mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
