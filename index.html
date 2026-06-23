@@ -1415,7 +1415,10 @@ async function openPlanModal(projId) {
           <div class="step-card-head">
             <div class="step-seq">${s.seq}</div>
             <div><b>${esc(s.step_name)}</b></div>
-            <button class="btn btn-sm btn-red" style="margin-left:auto" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>
+            <div style="display:flex;gap:6px;margin-left:auto">
+              <button class="btn btn-sm btn-ghost" onclick="editStepInline('${s.id}','${projId}')">✏️ แก้ไข</button>
+              <button class="btn btn-sm btn-red" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>
+            </div>
           </div>
           <div style="font-size:12px;color:var(--muted)">เครื่อง: ${esc(s.machine||'-')} · ช่าง: ${esc(s.assigned_name||'-')} · Part No: ${esc(s.part_no||'-')} · เวลา/ชิ้น: ${s.time_per_piece||'-'} นาที · จำนวน: ${s.qty}</div>
         </div>`).join('')}
@@ -1508,6 +1511,59 @@ async function addStep(projId, seq) {
   document.getElementById('modal').classList.remove('modal-lg');
   showToast(`เพิ่มขั้นตอนที่ ${seq} แล้ว`, 'success'); closeModal();
   openPlanModal(projId);
+}
+
+async function editStepInline(stepId, projId) {
+  const { data: s } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  if (!s) return;
+  const workers = getWorkerList();
+  const machines = getMachineList();
+  openModal(`✏️ แก้ไขขั้นตอนที่ ${s.seq}`, `
+    <div class="form-row">
+      <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="es-name" value="${esc(s.step_name)}"></div>
+      <div class="form-group">
+        <label>เครื่องจักร</label>
+        <select id="es-machine" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+          <option value="">— เลือกเครื่องจักร —</option>
+          ${machines.map(m=>`<option value="${m}" ${s.machine===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Part No.</label><input id="es-partno" value="${esc(s.part_no||'')}"></div>
+      <div class="form-group">
+        <label>ช่างผู้รับผิดชอบ</label>
+        <select id="es-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+          <option value="">— เลือกช่าง —</option>
+          ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>เวลาต่อชิ้น (นาที)</label><input id="es-time" type="number" min="0.1" step="0.1" value="${s.time_per_piece||''}"></div>
+      <div class="form-group"><label>จำนวน *</label><input id="es-qty" type="number" min="1" value="${s.qty}"></div>
+    </div>
+    <div class="form-group"><label>หมายเหตุ</label><input id="es-notes" value="${esc(s.notes||'')}"></div>
+  `, [
+    { label: '💾 บันทึก', cls: 'btn-primary', action: async () => {
+      const name = document.getElementById('es-name').value.trim();
+      const qty = parseInt(document.getElementById('es-qty').value);
+      if (!name || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+      const workerName = document.getElementById('es-worker').value;
+      await sb.from('process_steps').update({
+        step_name: name,
+        machine: document.getElementById('es-machine').value,
+        part_no: document.getElementById('es-partno').value.trim(),
+        assigned_name: workerName || null,
+        status: workerName ? 'assigned' : (s.status === 'pending' ? 'pending' : s.status),
+        time_per_piece: parseFloat(document.getElementById('es-time').value) || null,
+        qty,
+        notes: document.getElementById('es-notes').value,
+      }).eq('id', stepId);
+      showToast('แก้ไขแล้ว', 'success');
+      closeModal(); openPlanModal(projId);
+    }},
+  ]);
 }
 
 async function deleteStep(stepId, projId) {
