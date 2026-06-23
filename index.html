@@ -1249,9 +1249,8 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       </div>`;
     }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
 
-    const allAssigned = steps.length && steps.every(s => s.assigned_name || ['confirmed','done_by_worker','assigned','in_progress'].includes(s.status));
     const allDoneOrConfirmed = steps.length && steps.every(s => ['confirmed','done_by_worker'].includes(s.status));
-    const canSendWorkers = allAssigned && !allDoneOrConfirmed && p.status !== 'pending_qc';
+    const canSendWorkers = steps.length && !allDoneOrConfirmed && p.status !== 'pending_qc';
     const canSendQC = allDoneOrConfirmed && p.status !== 'pending_qc';
 
     return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px" id="wsc-${p.id}">
@@ -1280,7 +1279,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
         </div>
         ${stepsHtml}
         ${!steps.length ? `<div style="padding:10px 14px"><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">➕ วาง Process Plan</button></div>` : ''}
-        ${steps.length && ['approved','planning'].includes(p.status) ? `<div style="padding:10px 14px;border-top:1px solid var(--border)"><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">✏️ แก้ไข Process Plan</button></div>` : ''}
+        ${steps.length && !['pending_qc','completed'].includes(p.status) ? `<div style="padding:10px 14px;border-top:1px solid var(--border)"><button class="btn btn-sm btn-primary" onclick="openPlanModal('${p.id}')">✏️ แก้ไข Process Plan</button></div>` : ''}
         ${canSendWorkers ? `<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px"><button class="btn btn-sm btn-green" onclick="wsSendToWorkers('${p.id}')">📤 ส่งงานให้ช่าง</button></div>` : ''}
         ${canSendQC ? `<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px"><button class="btn btn-sm btn-primary" onclick="sendToQC('${p.id}')">🔍 ส่ง QC</button></div>` : ''}
       </div>
