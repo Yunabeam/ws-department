@@ -456,7 +456,7 @@ async function showApp() {
   buildSidebar();
   await loadNotifications();
   setupRealtime();
-  refreshTimer = setInterval(() => { loadNotifications(); if (currentPage) navigateTo(currentPage, true); }, 30000);
+  refreshTimer = setInterval(() => { loadNotifications(); }, 30000);
   navigateTo(getDefaultPage());
 }
 
