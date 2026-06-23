@@ -1878,40 +1878,33 @@ async function startTask(stepId) {
 }
 
 async function completeTask(stepId, projId) {
-  const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  const [{ data: step }, { data: proj }] = await Promise.all([
+    sb.from('process_steps').select('*').eq('id', stepId).single(),
+    sb.from('projects').select('confirmed_deadline').eq('id', projId).single(),
+  ]);
   const today = todayStr();
-  const isLate = step?.planned_end && today > step.planned_end;
-  const deadlineText = step?.planned_end ? `กำหนดส่ง: <b>${fmtDate(step.planned_end)}</b>` : 'ยังไม่มีกำหนดส่ง';
+  const isLate = proj?.confirmed_deadline && today > proj.confirmed_deadline;
+  const deadlineText = proj?.confirmed_deadline ? `กำหนดส่งโปรเจค: <b>${fmtDate(proj.confirmed_deadline)}</b>` : '';
 
-  if (isLate) {
-    openModal('แจ้งสถานะงาน', `
-      <p style="font-size:14px;margin-bottom:4px">${deadlineText}</p>
-      <p style="font-size:13px;color:var(--red);margin-bottom:12px">⚠️ เลยกำหนดแล้ว กรุณาระบุสาเหตุ:</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="btn btn-amber" style="text-align:left;padding:12px" onclick="document.getElementById('late-reason-section').style.display='block';document.getElementById('late-self-section').style.display='none'">
-          ⚡ มีงานด่วนแทรก (ไม่หัก KPI)
-        </button>
-        <div id="late-reason-section" style="display:none;padding:8px;background:#fffbeb;border-radius:8px;border:1px solid var(--amber)">
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ระบุงานที่มาแทรก:</label>
-          <input id="late-reason-input" placeholder="เช่น งาน PRJ-69-005 เร่งด่วน" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
-          <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="submitCompleteTask('${stepId}','${projId}','urgent')">ยืนยันส่งงาน</button>
-        </div>
-        <button class="btn" style="text-align:left;padding:12px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="document.getElementById('late-self-section').style.display='block';document.getElementById('late-reason-section').style.display='none'">
-          😓 ทำไม่ทันเอง (หัก KPI 3 คะแนน)
-        </button>
-        <div id="late-self-section" style="display:none;padding:8px;background:#fef2f2;border-radius:8px;border:1px solid #fca5a5">
-          <p style="font-size:13px;color:#dc2626;margin-bottom:8px">คะแนน KPI จะถูกหัก 3 คะแนน</p>
-          <button class="btn btn-red" style="width:100%" onclick="submitCompleteTask('${stepId}','${projId}','late_self')">ยืนยันส่งงาน</button>
-        </div>
+  openModal('แจ้งสถานะงาน', `
+    ${deadlineText ? `<p style="font-size:13px;color:var(--muted);margin-bottom:12px">${deadlineText}</p>` : ''}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-green" style="text-align:left;padding:12px;font-size:14px" onclick="submitCompleteTask('${stepId}','${projId}',null)">
+        ✅ ทำเสร็จแล้ว → ส่งหัวหน้า WS ยืนยัน
+      </button>
+      <button class="btn btn-amber" style="text-align:left;padding:12px;font-size:14px" onclick="document.getElementById('late-reason-section').style.display='block'">
+        ⚡ ติดงานด่วนแทรก ยังทำไม่เสร็จ
+      </button>
+      <div id="late-reason-section" style="display:none;padding:10px;background:#fffbeb;border-radius:8px;border:1px solid var(--amber)">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ระบุงานที่มาแทรก:</label>
+        <input id="late-reason-input" placeholder="เช่น งาน PRJ-69-005 เร่งด่วน" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
+        <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="submitCompleteTask('${stepId}','${projId}','urgent')">ยืนยัน</button>
       </div>
-    `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
-  } else {
-    openModal('แจ้งสถานะงาน', `
-      <p style="font-size:14px;margin-bottom:4px">${deadlineText}</p>
-      <p style="font-size:13px;color:var(--green);margin-bottom:16px">✅ ทำทันกำหนด</p>
-      <button class="btn btn-green" style="width:100%;padding:12px" onclick="submitCompleteTask('${stepId}','${projId}',null)">ยืนยันส่งงานให้หัวหน้า WS</button>
-    `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
-  }
+      <button class="btn" style="text-align:left;padding:12px;font-size:14px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="submitCompleteTask('${stepId}','${projId}','late_self')">
+        😓 ทำไม่ทันเอง ยังทำไม่เสร็จ
+      </button>
+    </div>
+  `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
 }
 
 async function submitCompleteTask(stepId, projId, reason) {
