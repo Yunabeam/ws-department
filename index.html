@@ -1686,29 +1686,100 @@ async function wsSendToWorkers(projId) {
 // WS MANAGER - GANTT
 // ============================================================
 async function renderWSGantt(mc) {
+  // Get week start (Monday) based on offset
+  const offset = parseInt(mc.dataset.weekOffset || '0');
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun
+  const diffToMon = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMon + offset * 7);
+
+  const days = Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  const dayStrs = days.map(d => d.toISOString().slice(0,10));
+  const startStr = dayStrs[0];
+  const endStr = dayStrs[6];
+
   const { data: steps } = await sb.from('process_steps')
     .select('*,projects(project_no,name,confirmed_deadline,status)')
     .in('status', ['assigned','in_progress','confirmed','done_by_worker'])
-    .order('seq');
+    .not('planned_start', 'is', null)
+    .gte('planned_start', startStr)
+    .lte('planned_start', endStr)
+    .order('planned_start');
+
   const rows = steps || [];
+  // Group by day
+  const byDay = {};
+  dayStrs.forEach(d => byDay[d] = []);
+  rows.forEach(s => { if (byDay[s.planned_start]) byDay[s.planned_start].push(s); });
+
+  const DAY_TH = ['จ','อ','พ','พฤ','ศ','ส','อา'];
+  const DAY_FULL = ['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'];
+  const todayStr2 = today.toISOString().slice(0,10);
+
+  const STATUS_COLOR = {
+    assigned: '#e0f2fe', in_progress: '#fef3c7', confirmed: '#dcfce7', done_by_worker: '#f3e8ff'
+  };
+  const STATUS_BORDER = {
+    assigned: '#38bdf8', in_progress: '#f59e0b', confirmed: '#22c55e', done_by_worker: '#a855f7'
+  };
+
+  const rangeLabel = `${days[0].getDate()} – ${days[6].getDate()} ${['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][days[0].getMonth()+1]} ${days[0].getFullYear()+543}`;
+
   mc.innerHTML = `
-    <div class="section-header"><div class="section-title">📅 แผนงานรายสัปดาห์</div><div class="section-sub">ภาพรวมงานที่มอบหมายแล้ว</div></div>
-    <div class="card">
-      ${rows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีงานที่วางแผนแล้ว</div>' : `
-      <div class="table-wrap"><table>
-        <thead><tr><th>โปรเจค</th><th>ขั้นตอน</th><th>ช่าง</th><th>เครื่องจักร</th><th>สถานะ</th></tr></thead>
-        <tbody>${rows.map(s => `
-          <tr>
-            <td><b>${esc(s.projects?.project_no||'—')}</b><br><small style="color:var(--muted)">${esc(s.projects?.name||'—')}</small></td>
-            <td>${s.seq}. ${esc(s.step_name)}</td>
-            <td>${esc(s.assigned_name||'—')}</td>
-            <td>${esc(s.machine||'—')}</td>
-            <td>${statusBadge(s.status)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table></div>`}
+    <div class="section-header">
+      <div>
+        <div class="section-title">📅 แผนงานรายสัปดาห์</div>
+        <div class="section-sub">${rangeLabel}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-sm btn-ghost" onclick="wsGanttNav(${offset-1})">‹ สัปดาห์ก่อน</button>
+        ${offset !== 0 ? `<button class="btn btn-sm btn-ghost" onclick="wsGanttNav(0)">วันนี้</button>` : ''}
+        <button class="btn btn-sm btn-ghost" onclick="wsGanttNav(${offset+1})">สัปดาห์ถัดไป ›</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;overflow-x:auto;min-width:700px">
+      ${days.map((d, i) => {
+        const ds = dayStrs[i];
+        const isToday = ds === todayStr2;
+        const isWeekend = i >= 5;
+        const cards = byDay[ds];
+        return `
+          <div style="background:var(--surface);border-radius:12px;overflow:hidden;border:2px solid ${isToday?'#3b82f6':'var(--border)'};min-height:200px">
+            <div style="padding:8px 10px;text-align:center;background:${isToday?'#3b82f6':isWeekend?'var(--surface-2)':'var(--surface-2)'};color:${isToday?'#fff':isWeekend?'#94a3b8':'var(--text)'}">
+              <div style="font-size:12px;font-weight:500">${DAY_FULL[i]}</div>
+              <div style="font-size:22px;font-weight:700;line-height:1.2">${d.getDate()}</div>
+            </div>
+            <div style="padding:6px;display:flex;flex-direction:column;gap:5px">
+              ${cards.length === 0
+                ? `<div style="color:var(--text-secondary);font-size:12px;text-align:center;padding:12px 4px;opacity:0.5">ว่าง</div>`
+                : cards.map(s => `
+                  <div style="background:${STATUS_COLOR[s.status]||'#f1f5f9'};border-left:3px solid ${STATUS_BORDER[s.status]||'#94a3b8'};border-radius:6px;padding:6px 8px;font-size:12px">
+                    <div style="font-weight:700;color:#1e293b;margin-bottom:2px">${esc(s.projects?.project_no||'—')}</div>
+                    <div style="color:#334155;line-height:1.3">${esc(s.step_name)}</div>
+                    <div style="color:#64748b;margin-top:3px;font-size:11px">👤 ${esc(s.assigned_name||'—')} · ${esc(s.machine||'—')}</div>
+                  </div>`).join('')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary)">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#e0f2fe;border-left:3px solid #38bdf8;border-radius:2px;margin-right:4px"></span>มอบหมายแล้ว</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:2px;margin-right:4px"></span>กำลังทำ</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border-left:3px solid #22c55e;border-radius:2px;margin-right:4px"></span>รอยืนยัน</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#f3e8ff;border-left:3px solid #a855f7;border-radius:2px;margin-right:4px"></span>เสร็จแล้ว</span>
     </div>
   `;
+}
+
+function wsGanttNav(offset) {
+  const mc = document.getElementById('main-content');
+  mc.dataset.weekOffset = offset;
+  renderWSGantt(mc);
 }
 
 // ============================================================
