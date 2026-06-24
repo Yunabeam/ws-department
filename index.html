@@ -1273,16 +1273,16 @@ async function deleteUser(userId) {
 // ============================================================
 // MONITOR REAL-TIME
 // ============================================================
-async function renderWSMonitor(mc) {
+async function renderWSMonitor(mc, selDate) {
   mc.innerHTML = `<div class="section-header"><div class="section-title">📡 Monitor ช่าง Real-time</div></div><div class="card"><div class="spinner"></div></div>`;
   const workers = getWorkerList();
   const today = todayStr();
+  const viewDate = selDate || today;
 
   const { data: steps } = await sb.from('process_steps')
     .select('*,projects(project_no,name,confirmed_deadline)')
     .in('status', ['assigned','in_progress','done_by_worker','confirmed'])
-    .not('planned_start','is',null)
-    .lte('planned_start', today);
+    .eq('planned_start', viewDate);
 
   const allSteps = steps || [];
   window._monitorSteps = allSteps;
@@ -1317,8 +1317,12 @@ async function renderWSMonitor(mc) {
   mc.innerHTML = `
     <div class="section-header">
       <div><div class="section-title">📡 Monitor ช่าง Real-time</div>
-      <div class="section-sub">ภาพรวมช่างวันนี้ · ${fmtDate(today)}</div></div>
-      <button class="btn btn-sm btn-ghost" onclick="renderWSMonitor(document.getElementById('main-content'))">🔄 รีเฟรช</button>
+      <div class="section-sub">ภาพรวมช่าง · ${fmtDate(viewDate)}${viewDate===today?' (วันนี้)':''}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="date" value="${viewDate}" max="${today}" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px" onchange="renderWSMonitor(document.getElementById('main-content'),this.value)">
+        <button class="btn btn-sm btn-ghost" onclick="renderWSMonitor(document.getElementById('main-content'))">วันนี้</button>
+        <button class="btn btn-sm btn-ghost" onclick="renderWSMonitor(document.getElementById('main-content'),'${viewDate}')">🔄</button>
+      </div>
     </div>
 
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">
