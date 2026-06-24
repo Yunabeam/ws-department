@@ -1232,13 +1232,26 @@ async function deleteUser(userId) {
 }
 
 // ============================================================
-async function renderKPIReport(mc) {
+function getKPISettings() {
+  try { return JSON.parse(localStorage.getItem('kpi_settings')||'{}'); } catch(e) { return {}; }
+}
+function saveKPISettings(s) { localStorage.setItem('kpi_settings', JSON.stringify(s)); }
+
+async function renderKPIReport(mc, selMonth) {
   mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
   const workers = getWorkerList();
   const today = todayStr();
   const thisMonth = today.substring(0, 7);
   const lmDate = new Date(today); lmDate.setMonth(lmDate.getMonth() - 1);
   const lastMonth = `${lmDate.getFullYear()}-${String(lmDate.getMonth()+1).padStart(2,'0')}`;
+  const month = selMonth || thisMonth;
+
+  // KPI settings (adjustable)
+  const cfg = getKPISettings();
+  const W_LATE    = cfg.w_late    ?? 5;
+  const W_QC      = cfg.w_qc      ?? 10;
+  const W_SELF    = cfg.w_self    ?? 3;
+  const TARGET_HRS = cfg.target_hrs ?? 160;
 
   const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }] = await Promise.all([
     sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed'),
@@ -1246,82 +1259,164 @@ async function renderKPIReport(mc) {
     sb.from('projects').select('id,status,confirmed_deadline').not('status','in','("pending_eng","pending_executive","rejected")'),
   ]);
 
-  const gradeColor = g => g==='A'?'var(--green)':g==='B'?'var(--teal)':g==='C'?'var(--amber)':g==='D'?'orange':'var(--red)';
+  const gradeColor = g => g==='A'?'#16a34a':g==='B'?'#0d9488':g==='C'?'#d97706':g==='D'?'#ea580c':'#dc2626';
+  const MONTH_TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const fmtMonth = m => { const [y,mo] = m.split('-'); return `${MONTH_TH[+mo]} ${+y+543}`; };
+
+  // Build month selector options (last 6 months)
+  const monthOpts = Array.from({length:6},(_,i)=>{
+    const d = new Date(today); d.setMonth(d.getMonth()-i);
+    const v = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return `<option value="${v}" ${v===month?'selected':''}>${fmtMonth(v)}</option>`;
+  }).join('');
 
   const kpiData = workers.map(w => {
-    const myDone = (confirmedSteps||[]).filter(s => s.assigned_name === w);
-    const myFails = (failedSteps||[]).filter(s => s.assigned_name === w);
-    const late = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline);
-    const lateSelf = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
-    const plannedHrs = myDone.reduce((sum, s) => sum + getStepHours(s), 0);
-    const score = Math.max(0, 100 - late.length*5 - myFails.length*10 - lateSelf.length*3);
-    const grade = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
-    const thisMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(thisMonth)).length;
-    const lastMonthDone = myDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
-    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, score, grade, plannedHrs, thisMonthDone, lastMonthDone };
+    const allDone   = (confirmedSteps||[]).filter(s => s.assigned_name === w);
+    const allFails  = (failedSteps||[]).filter(s => s.assigned_name === w);
+    // Filter by selected month
+    const myDone    = allDone.filter(s => s.worker_confirmed_at?.startsWith(month));
+    const myFails   = allFails.filter(s => s.updated_at?.startsWith(month));
+    const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline);
+    const lateSelf  = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
+    const monthHrs  = myDone.reduce((sum,s) => sum + getStepHours(s), 0);
+    const score     = Math.max(0, 100 - late.length*W_LATE - myFails.length*W_QC - lateSelf.length*W_SELF);
+    const grade     = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
+    const lastDone  = allDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
+    const workloadPct = TARGET_HRS > 0 ? Math.min(Math.round(monthHrs/TARGET_HRS*100),999) : 0;
+    const workloadColor = workloadPct>110?'#dc2626':workloadPct>=80?'#16a34a':'#d97706';
+    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
   });
 
+  // Manager KPI (month-based)
+  const completedThisMonth = (allProjects||[]).filter(p => p.status==='completed' && p.confirmed_deadline?.startsWith(month));
   const lateProjects = (allProjects||[]).filter(p => p.confirmed_deadline && p.confirmed_deadline < today && p.status !== 'completed');
-  const completedProjects = (allProjects||[]).filter(p => p.status === 'completed');
-  const deadlineRate = completedProjects.length ? Math.round((completedProjects.length - lateProjects.length) / Math.max(completedProjects.length,1) * 100) : 100;
-  const totalQCFails = (failedSteps||[]).length;
+  const completedAll = (allProjects||[]).filter(p => p.status==='completed');
+  const deadlineRate = completedAll.length ? Math.round((completedAll.length - (completedAll.filter(p=>p.confirmed_deadline && p.confirmed_deadline < today).length)) / Math.max(completedAll.length,1) * 100) : 100;
+  const totalQCFails = (failedSteps||[]).filter(s => s.updated_at?.startsWith(month)).length;
+  const mgScore = Math.max(0, Math.round(deadlineRate - totalQCFails*5 - lateProjects.length*3));
+  const mgGrade = mgScore>=90?'A':mgScore>=80?'B':mgScore>=70?'C':mgScore>=60?'D':'F';
 
   mc.innerHTML = `
-    <div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div>
+    <div class="section-header">
+      <div class="section-title">📈 รายงาน KPI</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select style="padding:6px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px" onchange="renderKPIReport(document.getElementById('main-content'),this.value)">${monthOpts}</select>
+        <button class="btn btn-sm btn-ghost" onclick="openKPISettings()">⚙️ ตั้งค่าคะแนน</button>
+      </div>
+    </div>
 
     <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><span class="card-title">🎯 KPI หัวหน้า WS</span></div>
-      <div class="stats-grid" style="margin-top:12px">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span class="card-title">🎯 KPI หัวหน้า WS — ${fmtMonth(month)}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:28px;font-weight:800;color:${gradeColor(mgGrade)}">${mgGrade}</span>
+          <span style="font-size:20px;font-weight:700;color:${gradeColor(mgGrade)}">${mgScore} คะแนน</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">สูตร: % ทันเดดไลน์ − QC Fail×5 − โปรเจคเลย Deadline×3</div>
+      <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-num" style="color:${deadlineRate>=95?'var(--green)':'var(--red)'}">${deadlineRate}%</div>
+          <div class="stat-num" style="color:${deadlineRate>=95?'#16a34a':'#dc2626'}">${deadlineRate}%</div>
           <div class="stat-label">งานทีมทันเดดไลน์</div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px">เป้า ≥ 95%</div>
         </div>
         <div class="stat-card">
-          <div class="stat-num" style="color:${totalQCFails===0?'var(--green)':'var(--red)'}">${totalQCFails}</div>
+          <div class="stat-num" style="color:${totalQCFails===0?'#16a34a':'#dc2626'}">${totalQCFails}</div>
           <div class="stat-label">QC Fail ในทีม</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">เป้า = 0</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">เดือน ${fmtMonth(month)}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-num" style="color:${lateProjects.length===0?'var(--green)':'var(--red)'}">${lateProjects.length}</div>
+          <div class="stat-num" style="color:${lateProjects.length===0?'#16a34a':'#dc2626'}">${lateProjects.length}</div>
           <div class="stat-label">โปรเจคเลย Deadline</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">ที่ยังค้างอยู่</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">ค้างอยู่ทั้งหมด</div>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><span class="card-title">👷 KPI ลูกน้อง (รายบุคคล)</span></div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">สูตร: 100 คะแนน หัก 5/โปรเจคล่าช้า หัก 10/QC Reject · A≥90, B=80–89, C=70–79, D=60–69, F&lt;60</div>
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span class="card-title">👷 KPI ช่างรายบุคคล — ${fmtMonth(month)}</span>
+        <span style="font-size:12px;color:var(--muted)">หัก ${W_LATE}/ล่าช้า · หัก ${W_QC}/QC Fail · หัก ${W_SELF}/ทำไม่ทันเอง · เป้า ${TARGET_HRS} ชม./เดือน</span>
+      </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>คะแนน</th><th>เกรด</th><th>ชม.สะสม</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th><th>เกรด</th></tr></thead>
         <tbody>${kpiData.map(k => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
-          <td><span style="color:${k.fails>0?'var(--red)':'var(--green)'}">${k.fails}</span></td>
-          <td><span style="color:${k.late>0?'var(--amber)':'var(--green)'}">${k.late}</span></td>
-          <td><span style="color:${k.lateSelf>0?'var(--red)':'var(--green)'}">${k.lateSelf}</span></td>
+          <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'}">${k.fails}</span></td>
+          <td><span style="color:${k.late>0?'#d97706':'#16a34a'}">${k.late}</span></td>
+          <td><span style="color:${k.lateSelf>0?'#dc2626':'#16a34a'}">${k.lateSelf}</span></td>
+          <td>${k.monthHrs.toFixed(1)} ชม.</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:60px;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden">
+                <div style="width:${Math.min(k.workloadPct,100)}%;height:100%;background:${k.workloadColor};border-radius:4px"></div>
+              </div>
+              <span style="font-size:12px;color:${k.workloadColor};font-weight:600">${k.workloadPct}%</span>
+            </div>
+          </td>
           <td><b style="color:${gradeColor(k.grade)}">${k.score}</b></td>
           <td><b style="font-size:16px;color:${gradeColor(k.grade)}">${k.grade}</b></td>
-          <td>${k.plannedHrs.toFixed(1)} ชม.</td>
         </tr>`).join('')}
         </tbody>
       </table></div>
     </div>
 
     <div class="card">
-      <div class="card-header"><span class="card-title">📅 Trend รายเดือน (งานเสร็จ)</span></div>
+      <div class="card-header"><span class="card-title">📅 Trend (เดือนที่แล้ว vs เดือนนี้)</span></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>เดือนที่แล้ว</th><th>เดือนนี้</th><th>เทียบ</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>${fmtMonth(lastMonth)}</th><th>${fmtMonth(month)}</th><th>เทียบ</th></tr></thead>
         <tbody>${kpiData.map(k => {
-          const diff = k.thisMonthDone - k.lastMonthDone;
-          const trend = diff>0?`<span style="color:var(--green)">▲ +${diff}</span>`:diff<0?`<span style="color:var(--red)">▼ ${diff}</span>`:`<span style="color:var(--muted)">— เท่าเดิม</span>`;
-          return `<tr><td><b>${esc(k.w)}</b></td><td>${k.lastMonthDone}</td><td>${k.thisMonthDone}</td><td>${trend}</td></tr>`;
+          const diff = k.done - k.lastDone;
+          const trend = diff>0?`<span style="color:#16a34a">▲ +${diff}</span>`:diff<0?`<span style="color:#dc2626">▼ ${diff}</span>`:`<span style="color:var(--muted)">— เท่าเดิม</span>`;
+          return `<tr><td><b>${esc(k.w)}</b></td><td>${k.lastDone}</td><td>${k.done}</td><td>${trend}</td></tr>`;
         }).join('')}
         </tbody>
       </table></div>
     </div>
   `;
+}
+
+function openKPISettings() {
+  const cfg = getKPISettings();
+  openModal('⚙️ ตั้งค่าการหักคะแนน KPI', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">หัก / งานล่าช้า 1 ครั้ง</label>
+          <input id="cfg-late" type="number" class="form-input" value="${cfg.w_late??5}" min="0" max="50" style="width:100%;font-size:16px;padding:10px">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">หัก / QC Fail 1 ครั้ง</label>
+          <input id="cfg-qc" type="number" class="form-input" value="${cfg.w_qc??10}" min="0" max="50" style="width:100%;font-size:16px;padding:10px">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">หัก / ทำไม่ทันเอง 1 ครั้ง</label>
+          <input id="cfg-self" type="number" class="form-input" value="${cfg.w_self??3}" min="0" max="50" style="width:100%;font-size:16px;padding:10px">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">เป้าชั่วโมง / เดือน / คน</label>
+          <input id="cfg-hrs" type="number" class="form-input" value="${cfg.target_hrs??160}" min="1" max="300" style="width:100%;font-size:16px;padding:10px">
+        </div>
+      </div>
+      <div style="background:var(--surface-2);padding:12px;border-radius:8px;font-size:13px;color:var(--text-secondary)">
+        เกรด: A ≥ 90 · B = 80–89 · C = 70–79 · D = 60–69 · F &lt; 60
+      </div>
+    </div>
+  `, [
+    { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
+    { label:'บันทึก', cls:'btn-blue', action: () => {
+      saveKPISettings({
+        w_late: +document.getElementById('cfg-late').value || 5,
+        w_qc:   +document.getElementById('cfg-qc').value   || 10,
+        w_self: +document.getElementById('cfg-self').value || 3,
+        target_hrs: +document.getElementById('cfg-hrs').value || 160,
+      });
+      closeModal();
+      renderKPIReport(document.getElementById('main-content'));
+      showToast('บันทึกการตั้งค่าแล้ว ✅','success');
+    }},
+  ]);
 }
 
 // ============================================================
