@@ -556,12 +556,14 @@ const NAV_ITEMS = {
     { id:'pending-approvals', icon:'📋', label:'ใบคำร้องรออนุมัติ' },
     { id:'all-projects', icon:'📁', label:'โปรเจคทั้งหมด' },
     { id:'kpi-report', icon:'📈', label:'รายงาน KPI' },
+    { id:'ws-monitor', icon:'📡', label:'Monitor ช่าง Real-time' },
     { id:'manage-users', icon:'👤', label:'จัดการผู้ใช้', superAdminOnly: true },
   ],
   ws_manager: [
     { id:'ws-status-plan', icon:'📋', label:'สถานะ & วางแผน', badge:'need-plan-badge' },
     { id:'ws-confirm-steps', icon:'✅', label:'ยืนยันงานช่าง', badge:'confirm-badge' },
     { id:'ws-gantt', icon:'📅', label:'แผนรายสัปดาห์' },
+    { id:'ws-monitor', icon:'📡', label:'Monitor ช่างReal-time' },
   ],
   ws_worker: [
     { id:'my-tasks', icon:'🔧', label:'งานของฉัน', badge:'task-badge' },
@@ -580,6 +582,7 @@ const NAV_ITEMS = {
     { id:'dashboard', icon:'📊', label:'ภาพรวม' },
     { id:'all-projects', icon:'📁', label:'โปรเจคทั้งหมด' },
     { id:'kpi-report', icon:'📈', label:'รายงาน KPI' },
+    { id:'ws-monitor', icon:'📡', label:'Monitor ช่าง Real-time' },
     { id:'ws-status-plan', icon:'📋', label:'สถานะ & วางแผน' },
     { id:'ws-gantt', icon:'📅', label:'แผนรายสัปดาห์' },
   ],
@@ -638,6 +641,7 @@ async function navigateTo(page, silent = false) {
       case 'qc-history': await renderQCHistory(mc); break;
       case 'exec-approvals': await renderExecApprovals(mc); break;
       case 'manage-users': await renderUserManagement(mc); break;
+      case 'ws-monitor': await renderWSMonitor(mc); break;
       default: mc.innerHTML = '<div class="card"><p>ไม่พบหน้านี้</p></div>';
     }
   } catch(e) {
@@ -1262,6 +1266,111 @@ async function deleteUser(userId) {
   if (error) { showToast('ลบไม่สำเร็จ: '+error.message, 'error'); return; }
   showToast('ลบผู้ใช้แล้ว', 'success');
   navigateTo('manage-users');
+}
+
+// ============================================================
+// MONITOR REAL-TIME
+// ============================================================
+async function renderWSMonitor(mc) {
+  mc.innerHTML = `<div class="section-header"><div class="section-title">📡 Monitor ช่าง Real-time</div></div><div class="card"><div class="spinner"></div></div>`;
+  const workers = getWorkerList();
+  const today = todayStr();
+
+  const { data: steps } = await sb.from('process_steps')
+    .select('*,projects(project_no,name,confirmed_deadline)')
+    .in('status', ['assigned','in_progress','done_by_worker','confirmed'])
+    .not('planned_start','is',null)
+    .lte('planned_start', today);
+
+  const allSteps = steps || [];
+
+  function fmtDuration(startIso, endIso) {
+    if (!startIso) return '-';
+    const start = new Date(startIso);
+    const end = endIso ? new Date(endIso) : new Date();
+    const mins = Math.round((end - start) / 60000);
+    if (mins < 60) return `${mins} นาที`;
+    return `${Math.floor(mins/60)} ชม. ${mins%60} นาที`;
+  }
+
+  function plannedMins(s) {
+    if (!s.time_per_piece || !s.qty) return null;
+    return s.time_per_piece * s.qty;
+  }
+
+  function diffLabel(s) {
+    const pm = plannedMins(s);
+    if (!pm || !s.started_at || !s.actual_completed_at) return '';
+    const actual = Math.round((new Date(s.actual_completed_at) - new Date(s.started_at)) / 60000);
+    const diff = actual - pm;
+    if (diff <= 0) return `<span style="color:#16a34a;font-weight:600">ไวกว่าแผน ${Math.abs(diff)} นาที ✓</span>`;
+    return `<span style="color:#dc2626;font-weight:600">ช้ากว่าแผน ${diff} นาที</span>`;
+  }
+
+  const STATUS_ICON = { assigned:'⏸️', in_progress:'▶️', done_by_worker:'⏳', confirmed:'✅' };
+  const STATUS_LABEL = { assigned:'ยังไม่เริ่ม', in_progress:'กำลังทำ', done_by_worker:'รอยืนยัน', confirmed:'เสร็จแล้ว' };
+  const STATUS_COLOR = { assigned:'#f1f5f9', in_progress:'#eff6ff', done_by_worker:'#fefce8', confirmed:'#f0fdf4' };
+  const STATUS_BORDER = { assigned:'#cbd5e1', in_progress:'#3b82f6', done_by_worker:'#f59e0b', confirmed:'#22c55e' };
+
+  mc.innerHTML = `
+    <div class="section-header">
+      <div><div class="section-title">📡 Monitor ช่าง Real-time</div>
+      <div class="section-sub">วันนี้ ${fmtDate(today)}</div></div>
+      <button class="btn btn-sm btn-ghost" onclick="renderWSMonitor(document.getElementById('main-content'))">🔄 รีเฟรช</button>
+    </div>
+    ${workers.map(w => {
+      const mySteps = allSteps.filter(s => s.assigned_name === w);
+      const done = mySteps.filter(s => ['confirmed','done_by_worker'].includes(s.status));
+      const inProg = mySteps.filter(s => s.status === 'in_progress');
+      const pending = mySteps.filter(s => s.status === 'assigned');
+      const totalPlanMins = mySteps.reduce((sum,s) => sum + (plannedMins(s)||0), 0);
+      const donePlanMins = done.reduce((sum,s) => sum + (plannedMins(s)||0), 0);
+      const pct = totalPlanMins > 0 ? Math.round(donePlanMins/totalPlanMins*100) : 0;
+      const progressColor = pct >= 80 ? '#16a34a' : pct >= 40 ? '#f59e0b' : '#dc2626';
+
+      return `
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">👷</span>
+              <div>
+                <div class="card-title" style="font-size:16px">${esc(w)}</div>
+                <div style="font-size:12px;color:var(--text-secondary)">${done.length}/${mySteps.length} งานเสร็จ · ${inProg.length > 0 ? `<span style="color:#3b82f6">กำลังทำ ${inProg.length} งาน</span>` : pending.length > 0 ? `<span style="color:#94a3b8">ยังไม่เริ่ม</span>` : '<span style="color:#16a34a">เสร็จทั้งหมด</span>'}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="text-align:right">
+                <div style="font-size:12px;color:var(--text-secondary)">ความคืบหน้าวันนี้</div>
+                <div style="font-size:20px;font-weight:700;color:${progressColor}">${pct}%</div>
+              </div>
+              <div style="width:80px;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:${progressColor};border-radius:5px;transition:.3s"></div>
+              </div>
+            </div>
+          </div>
+          ${mySteps.length === 0 ? `<div style="color:var(--text-secondary);font-size:13px;padding:8px 0">ไม่มีงานวันนี้</div>` : `
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+            ${mySteps.map(s => `
+              <div style="background:${STATUS_COLOR[s.status]||'#f8fafc'};border:1.5px solid ${STATUS_BORDER[s.status]||'#e2e8f0'};border-radius:10px;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+                  <div>
+                    <div style="font-weight:700;font-size:14px">${esc(s.projects?.project_no||'—')} — ขั้นตอน ${s.seq}: ${esc(s.step_name)}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${esc(s.projects?.name||'')} · เครื่อง: ${esc(s.machine||'-')} · ${s.qty||0} ชิ้น</div>
+                  </div>
+                  <span style="font-size:13px;font-weight:600">${STATUS_ICON[s.status]} ${STATUS_LABEL[s.status]}</span>
+                </div>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px">
+                  <span style="color:var(--text-secondary)">⏱ แผน: <b>${plannedMins(s) ? `${plannedMins(s)} นาที` : '-'}</b></span>
+                  <span style="color:var(--text-secondary)">🕐 เริ่ม: <b>${s.started_at ? new Date(s.started_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : 'ยังไม่เริ่ม'}</b></span>
+                  ${s.status === 'in_progress' ? `<span style="color:#3b82f6">⏳ ผ่านมาแล้ว: <b>${fmtDuration(s.started_at, null)}</b></span>` : ''}
+                  ${s.actual_completed_at ? `<span style="color:var(--text-secondary)">✅ เสร็จ: <b>${new Date(s.actual_completed_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></span>` : ''}
+                  ${s.actual_completed_at ? `<span>${diffLabel(s)}</span>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>`}
+        </div>`;
+    }).join('')}
+  `;
 }
 
 // ============================================================
@@ -2301,7 +2410,10 @@ async function renderMyTasks(mc) {
 }
 
 async function startTask(stepId) {
-  await sb.from('process_steps').update({ status: 'in_progress' }).eq('id', stepId);
+  await sb.from('process_steps').update({
+    status: 'in_progress',
+    started_at: new Date().toISOString(),
+  }).eq('id', stepId);
   showToast('เริ่มงานแล้ว', 'info'); navigateTo('my-tasks');
 }
 
@@ -2344,6 +2456,7 @@ async function submitCompleteTask(stepId, projId, reason) {
   const { error } = await sb.from('process_steps').update({
     status: 'done_by_worker',
     worker_confirmed_at: new Date().toISOString(),
+    actual_completed_at: new Date().toISOString(),
     notes: newNotes || step?.notes,
   }).eq('id', stepId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
