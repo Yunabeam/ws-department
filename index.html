@@ -2474,7 +2474,9 @@ async function submitRequest() {
 // USER - MY REQUESTS
 // ============================================================
 async function renderMyRequests(mc) {
-  const { data } = await sb.from('projects').select('*').eq('requester_id', currentProfile.id).order('created_at', { ascending: false });
+  const isSA = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+  const query = sb.from('projects').select('*').order('created_at', { ascending: false });
+  const { data } = isSA ? await query : await query.eq('requester_id', currentProfile.id);
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📋 ใบคำร้องของฉัน</div></div>
     <div class="card">
