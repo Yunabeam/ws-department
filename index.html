@@ -1664,8 +1664,8 @@ async function renderWSStatusPlan(mc) {
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('nosteps',this)">ยังไม่มีแผน (${noSteps.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('waitsched',this)">รอวางตาราง (${waitSched.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('nosteps',this)">รอใส่ขั้นตอนการทำงาน (${noSteps.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('waitsched',this)">รอวางแผน (${waitSched.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
     </div>
@@ -1822,9 +1822,9 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const hasSched = steps.some(s => s.planned_start);
     const statusTag = isPrePlan
       ? (!hasSteps
-          ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ ยังไม่มีแผน</span>'
+          ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ รอใส่ขั้นตอนการทำงาน</span>'
           : !hasSched
-            ? '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางตาราง</span>'
+            ? '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>'
             : '<span class="status s-planning">กำลังวางแผน</span>')
       : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
       : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
