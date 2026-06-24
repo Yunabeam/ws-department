@@ -1634,8 +1634,8 @@ async function renderWSStatusPlan(mc) {
   const workerList = getWorkerList();
   // noSteps = approved/planning but zero steps created yet
   const noSteps  = projects.filter(p => ['approved','planning'].includes(p.status) && !(stepMap[p.id]||[]).length);
-  // waitSched = has steps but none have planned_start yet (not yet scheduled)
-  const waitSched = projects.filter(p => ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length && !(stepMap[p.id]||[]).some(s => s.planned_start));
+  // waitSched = has steps (any scheduling state) — pre-execution projects with a plan
+  const waitSched = projects.filter(p => ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length);
   const needPlan = projects.filter(p => ['approved','planning'].includes(p.status));
   const inProg   = projects.filter(p => ['assigning','in_progress'].includes(p.status));
   const waitQC   = projects.filter(p => p.status === 'pending_qc');
@@ -1805,7 +1805,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     if (filter === 'all') return true;
     if (filter === 'need') return ['approved','planning'].includes(p.status);
     if (filter === 'nosteps') return ['approved','planning'].includes(p.status) && !(stepMap[p.id]||[]).length;
-    if (filter === 'waitsched') return ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length && !(stepMap[p.id]||[]).some(s => s.planned_start);
+    if (filter === 'waitsched') return ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length;
     if (filter === 'wip') return ['assigning','in_progress'].includes(p.status);
     if (filter === 'qc') return p.status === 'pending_qc';
     return true;
@@ -1823,9 +1823,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const statusTag = isPrePlan
       ? (!hasSteps
           ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ รอใส่ขั้นตอนการทำงาน</span>'
-          : !hasSched
-            ? '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>'
-            : '<span class="status s-planning">กำลังวางแผน</span>')
+          : '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>')
       : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
       : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
     const stepsHtml = steps.length ? steps.map(s => {
