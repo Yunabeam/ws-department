@@ -1632,6 +1632,10 @@ async function renderWSStatusPlan(mc) {
   }
 
   const workerList = getWorkerList();
+  // noSteps = approved/planning but zero steps created yet
+  const noSteps  = projects.filter(p => ['approved','planning'].includes(p.status) && !(stepMap[p.id]||[]).length);
+  // waitSched = has steps but none have planned_start yet (not yet scheduled)
+  const waitSched = projects.filter(p => ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length && !(stepMap[p.id]||[]).some(s => s.planned_start));
   const needPlan = projects.filter(p => ['approved','planning'].includes(p.status));
   const inProg   = projects.filter(p => ['assigning','in_progress'].includes(p.status));
   const waitQC   = projects.filter(p => p.status === 'pending_qc');
@@ -1660,7 +1664,8 @@ async function renderWSStatusPlan(mc) {
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm ws-filter active" onclick="wsFilter('all',this)">ทั้งหมด (${projects.length})</button>
-      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('need',this)">ต้องวางแผน (${needPlan.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('nosteps',this)">ยังไม่มีแผน (${noSteps.length})</button>
+      <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('waitsched',this)">รอวางตาราง (${waitSched.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('wip',this)">กำลังทำ (${inProg.length})</button>
       <button class="btn btn-ghost btn-sm ws-filter" onclick="wsFilter('qc',this)">รอ QC (${waitQC.length})</button>
     </div>
@@ -1799,6 +1804,8 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
   const filtered = projects.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'need') return ['approved','planning'].includes(p.status);
+    if (filter === 'nosteps') return ['approved','planning'].includes(p.status) && !(stepMap[p.id]||[]).length;
+    if (filter === 'waitsched') return ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length && !(stepMap[p.id]||[]).some(s => s.planned_start);
     if (filter === 'wip') return ['assigning','in_progress'].includes(p.status);
     if (filter === 'qc') return p.status === 'pending_qc';
     return true;
@@ -1810,8 +1817,15 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const total = steps.length;
     const pct = total ? Math.round(done / total * 100) : 0;
     const barColor = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--teal)' : '#d1d5db';
-    const statusTag = ['approved','planning'].includes(p.status)
-      ? '<span class="status s-planning">ต้องวางแผน</span>'
+    const isPrePlan = ['approved','planning'].includes(p.status);
+    const hasSteps = steps.length > 0;
+    const hasSched = steps.some(s => s.planned_start);
+    const statusTag = isPrePlan
+      ? (!hasSteps
+          ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ ยังไม่มีแผน</span>'
+          : !hasSched
+            ? '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางตาราง</span>'
+            : '<span class="status s-planning">กำลังวางแผน</span>')
       : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
       : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
     const stepsHtml = steps.length ? steps.map(s => {
