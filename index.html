@@ -1781,11 +1781,23 @@ function wsRefreshCard(projId) {
   const p = (window._wsProjects||[]).find(x => x.id === projId);
   const steps = window._wsStepMap?.[projId] || [];
   if (!p) return;
+  // remember expanded state before replacing
+  const bodyEl = document.getElementById('wsbody-' + projId);
+  const wasOpen = bodyEl && bodyEl.style.display !== 'none';
   const newCard = renderWSPrjCards([p], { [projId]: steps }, window._wsWorkers || getWorkerList(), window._wsCurrentFilter || 'all');
   const wrapper = document.createElement('div');
   wrapper.innerHTML = newCard;
   const newCardEl = wrapper.firstElementChild;
-  if (newCardEl) cardEl.replaceWith(newCardEl);
+  if (newCardEl) {
+    cardEl.replaceWith(newCardEl);
+    // restore expanded state
+    if (wasOpen) {
+      const newBody = document.getElementById('wsbody-' + projId);
+      const newChev = document.getElementById('chev-' + projId);
+      if (newBody) newBody.style.display = 'block';
+      if (newChev) newChev.style.transform = 'rotate(180deg)';
+    }
+  }
   // refresh worker summary
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
