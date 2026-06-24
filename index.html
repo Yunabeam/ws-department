@@ -1090,6 +1090,7 @@ async function renderUserManagement(mc) {
   mc.innerHTML = `<div class="section-header"><div class="section-title">👤 จัดการผู้ใช้</div></div><div class="card"><div class="spinner"></div></div>`;
   const { data: users, error } = await sb.from('app_users').select('*').order('created_at');
   if (error) { mc.innerHTML = `<div class="card" style="color:red">Error: ${error.message}</div>`; return; }
+  window._umUsers = users || [];
   const ROLE_OPTIONS = [
     { value:'eng_manager', label:'หัวหน้าวิศวกรรม' },
     { value:'ws_manager', label:'หัวหน้า WS' },
@@ -1127,7 +1128,7 @@ async function renderUserManagement(mc) {
               </td>
               <td style="padding:10px 8px">${u.is_super_admin?'<span style="color:#d97706;font-weight:600">★ SuperAdmin</span>':''}</td>
               <td style="padding:10px 8px;display:flex;gap:6px">
-                <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:none;cursor:pointer" onclick="openEditUserModal(${JSON.stringify(JSON.stringify(u))})">✏️ แก้ไข</button>
+                <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:none;cursor:pointer" onclick="openEditUserModal('${u.id}')">✏️ แก้ไข</button>
                 ${u.email !== currentUser.email ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteUser('${u.id}','${u.full_name}')">🗑️</button>` : ''}
               </td>
             </tr>
@@ -1197,8 +1198,9 @@ async function saveNewUser() {
   navigateTo('manage-users');
 }
 
-function openEditUserModal(jsonStr) {
-  const u = JSON.parse(jsonStr);
+function openEditUserModal(userId) {
+  const u = (window._umUsers||[]).find(x => x.id === userId);
+  if (!u) { showToast('ไม่พบข้อมูลผู้ใช้', 'error'); return; }
   const ROLE_OPTIONS = [
     { value:'eng_manager', label:'หัวหน้าวิศวกรรม' },
     { value:'ws_manager', label:'หัวหน้า WS' },
