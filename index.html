@@ -2409,28 +2409,35 @@ async function confirmStep(stepId, projId) {
 // ============================================================
 async function renderMyTasks(mc) {
   const workers = getWorkerList();
-  // ถ้าชื่อ profile ไม่ตรงกับชื่อช่างใน list ให้เลือกเองได้
   const profileName = currentProfile.full_name;
-  const isWorkerName = workers.includes(profileName);
-  let myName = isWorkerName ? profileName : (localStorage.getItem('ws_selected_worker') || '');
+  const isStrictWorker = currentProfile.role === 'ws_worker';
 
-  const workerSelectorHtml = !isWorkerName ? `
-    <div class="card" style="margin-bottom:16px">
-      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">เลือกชื่อช่าง:</label>
-      <select id="worker-self-select" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%"
-        onchange="localStorage.setItem('ws_selected_worker',this.value);renderMyTasks(document.getElementById('main-content'))">
-        <option value="">— เลือกชื่อ —</option>
-        ${workers.map(w=>`<option value="${w}" ${w===myName?'selected':''}>${esc(w)}</option>`).join('')}
-      </select>
-    </div>` : '';
-
-  if (!isWorkerName && !myName) {
-    mc.innerHTML = `
-      <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
-      ${workerSelectorHtml}
-      <div class="card"><div class="empty"><div class="empty-icon">👆</div>กรุณาเลือกชื่อช่างก่อน</div></div>
-    `;
-    return;
+  // ws_worker เห็นแค่งานตัวเอง ไม่มี dropdown
+  // role อื่น (superAdmin ที่สวมบทช่าง) ยังเลือกได้
+  let myName, workerSelectorHtml;
+  if (isStrictWorker) {
+    myName = profileName;
+    workerSelectorHtml = '';
+  } else {
+    const isWorkerName = workers.includes(profileName);
+    myName = isWorkerName ? profileName : (localStorage.getItem('ws_selected_worker') || '');
+    workerSelectorHtml = !isWorkerName ? `
+      <div class="card" style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">เลือกชื่อช่าง:</label>
+        <select id="worker-self-select" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%"
+          onchange="localStorage.setItem('ws_selected_worker',this.value);renderMyTasks(document.getElementById('main-content'))">
+          <option value="">— เลือกชื่อ —</option>
+          ${workers.map(w=>`<option value="${w}" ${w===myName?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>` : '';
+    if (!myName) {
+      mc.innerHTML = `
+        <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
+        ${workerSelectorHtml}
+        <div class="card"><div class="empty"><div class="empty-icon">👆</div>กรุณาเลือกชื่อช่างก่อน</div></div>
+      `;
+      return;
+    }
   }
 
   const { data: allStepsRaw } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).eq('assigned_name', myName).order('seq');
