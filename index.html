@@ -2416,9 +2416,9 @@ async function renderMyTasks(mc) {
   const isStrictWorker = currentProfile.role === 'ws_worker';
 
   // ws_worker เห็นแค่งานตัวเอง ไม่มี dropdown
-  // role อื่น (superAdmin ที่สวมบทช่าง) ยังเลือกได้
+  // superAdmin ที่สวม role ช่างยังเลือกได้
   let myName, workerSelectorHtml;
-  if (isStrictWorker) {
+  if (isStrictWorker && !currentUser?.is_super_admin) {
     myName = profileName;
     workerSelectorHtml = '';
   } else {
