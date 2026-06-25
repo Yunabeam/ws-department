@@ -1754,6 +1754,44 @@ async function wsSavePlanDates(stepId, field, val) {
   if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
 }
 
+function _wsPlanCellHtml(s, p) {
+  const isDone = ['confirmed','done_by_worker'].includes(s.status);
+  const isLocked = ['in_progress','pending_qc'].includes(p.status) && s.status === 'pending' &&
+    (window._wsStepMap?.[p.id]||[]).find(prev => prev.seq === s.seq - 1 && !['confirmed','done_by_worker'].includes(prev.status));
+  const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
+  const planStart = s.planned_start || '';
+  const planEnd = s.planned_end || '';
+  const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
+  if (isDone) return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--green)">${dateDisplay}</span></div>`;
+  if (s.status === 'in_progress') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--teal)">${dateDisplay}</span></div>`;
+  if (s.status === 'done_by_worker') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--amber)">รอยืนยัน</span></div>`;
+  if (isLocked) return `<span style="font-size:12px;color:#94a3b8">—</span>`;
+  if (s.machine === 'ส่งออก (จัดซื้อ)') return `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`;
+  if (planStart) return `<div style="display:flex;flex-direction:column;gap:4px">
+    ${workerLabel}
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+      <input type="date" value="${planStart}" style="padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px" onchange="wsSavePlanDates('${s.id}','start',this.value)">
+      <span style="font-size:11px;color:var(--muted)">–</span>
+      <input type="date" value="${planEnd}" style="padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px" onchange="wsSavePlanDates('${s.id}','end',this.value)">
+      <button class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer" onclick="wsClearPlanDate('${s.id}','${p.id}')">✕</button>
+    </div></div>`;
+  return `<div style="display:flex;flex-direction:column;gap:4px">${workerLabel}<button class="btn btn-sm btn-primary" onclick="wsSetPlanToday('${s.id}','${p.id}')">📅 วางแผนวันนี้</button></div>`;
+}
+
+function _wsRefreshPlanCell(stepId, projId) {
+  const cell = document.getElementById('wspc-' + stepId);
+  if (!cell) { wsRefreshCard(projId); return; }
+  const p = (window._wsProjects||[]).find(x => x.id === projId);
+  const s = (window._wsStepMap?.[projId]||[]).find(x => x.id === stepId);
+  if (!p || !s) return;
+  cell.innerHTML = _wsPlanCellHtml(s, p);
+  // also refresh worker summary
+  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const workers = window._wsWorkers || getWorkerList();
+  const summaryEl = document.getElementById('ws-worker-summary');
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
+}
+
 async function wsSetPlanToday(stepId, projId) {
   const today = todayStr();
   await sb.from('process_steps').update({ planned_start: today, planned_end: null }).eq('id', stepId);
@@ -1762,7 +1800,7 @@ async function wsSetPlanToday(stepId, projId) {
     if (s) { s.planned_start = today; s.planned_end = null; }
   }
   showToast('วางแผนแล้ว ✅', 'success');
-  wsRefreshCard(projId);
+  _wsRefreshPlanCell(stepId, projId);
 }
 
 async function wsClearPlanDate(stepId, projId) {
@@ -1771,7 +1809,7 @@ async function wsClearPlanDate(stepId, projId) {
     const s = steps.find(x => x.id === stepId);
     if (s) { s.planned_start = null; s.planned_end = null; }
   }
-  wsRefreshCard(projId);
+  _wsRefreshPlanCell(stepId, projId);
 }
 
 function wsRefreshCard(projId) {
@@ -1888,7 +1926,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
           <div><div style="font-size:13px;font-weight:500">${esc(s.step_name)}</div><div style="font-size:11px;color:var(--muted)">${esc(s.part_no||'—')} · ${getStepHours(s)>0?getStepHours(s).toFixed(1)+' ชม.':'—'}</div></div>
         </div>
         <div style="padding-top:2px;display:flex;flex-direction:column;gap:3px">${stepStatus}${overdueTag}</div>
-        <div>${planCell}</div>
+        <div id="wspc-${s.id}">${planCell}</div>
       </div>`;
     }).join('') : '<div style="padding:12px 14px;font-size:13px;color:var(--muted)">ยังไม่มีขั้นตอน — <button class="btn btn-sm btn-primary" onclick="openPlanModal(\''+p.id+'\')">วาง Process Plan</button></div>';
 
