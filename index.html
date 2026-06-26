@@ -2557,10 +2557,13 @@ async function submitCompleteTask(stepId, projId, reason) {
     : reason === 'late_self' ? '[ทำไม่ทันเอง]' : null;
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
   const newNotes = reasonNote ? ((step?.notes ? step.notes + ' ' : '') + reasonNote) : step?.notes;
+  const now = new Date().toISOString();
   const { error } = await sb.from('process_steps').update({
     status: 'done_by_worker',
-    worker_confirmed_at: new Date().toISOString(),
-    actual_completed_at: new Date().toISOString(),
+    worker_confirmed_at: now,
+    actual_completed_at: now,
+    // ถ้ายังไม่เคยกด "เริ่ม" ให้ set started_at ด้วย
+    ...(step?.started_at ? {} : { started_at: now }),
     notes: newNotes || step?.notes,
   }).eq('id', stepId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
