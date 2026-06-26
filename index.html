@@ -364,10 +364,7 @@ const STATUS_LABELS = {
 // HARDCODED USERS (email → { password, id })
 // id ต้องตรงกับ profiles.id ใน Supabase
 // ============================================================
-const USERS_DB = {
-  'admin@ws.com': { password: 'Admin@1234', id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69' },
-  'test@ws.com':  { password: 'Test@1234',  id: 'd4d78c5e-d3f6-45a0-9a90-a0830aa96b69', superAdmin: true }
-};
+const USERS_DB = {}; // legacy fallback removed — all users in app_users
 
 // ============================================================
 // INIT
@@ -496,6 +493,9 @@ async function doLogout() {
   if (refreshTimer) clearInterval(refreshTimer);
   localStorage.removeItem('ws_session');
   currentUser = null; currentProfile = null;
+  window._wsProjects = null; window._wsStepMap = null; window._wsWorkers = null;
+  window._allProjects = null; window._umUsers = null;
+  localStorage.removeItem('ws_selected_worker');
   showLogin();
 }
 
@@ -627,6 +627,32 @@ async function navigateTo(page, silent = false) {
   const mc = document.getElementById('main-content');
   if (!silent) mc.innerHTML = '<div class="spinner"></div>';
   try {
+    // Role guard — block pages not in the user's nav
+    const role = currentProfile?.role;
+    const isSA = !!(currentUser?.is_super_admin);
+    const PAGE_ROLES = {
+      'dashboard':        ['eng_manager','executive'],
+      'pending-approvals':['eng_manager'],
+      'all-projects':     ['eng_manager','executive'],
+      'assign-workers':   ['eng_manager'],
+      'kpi-report':       ['eng_manager','executive'],
+      'ws-status-plan':   ['ws_manager','executive'],
+      'ws-confirm-steps': ['ws_manager'],
+      'ws-gantt':         ['ws_manager','executive'],
+      'my-tasks':         ['ws_worker'],
+      'task-history':     ['ws_worker'],
+      'create-request':   ['user'],
+      'my-requests':      ['user'],
+      'qc-queue':         ['qc'],
+      'qc-history':       ['qc'],
+      'exec-approvals':   ['executive'],
+      'manage-users':     ['eng_manager'],
+      'ws-monitor':       ['eng_manager','ws_manager','ws_worker','user','qc','executive'],
+    };
+    if (!isSA && PAGE_ROLES[page] && !PAGE_ROLES[page].includes(role)) {
+      mc.innerHTML = '<div class="card"><p style="color:var(--red)">⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p></div>';
+      return;
+    }
     switch(page) {
       case 'dashboard': await renderDashboard(mc); break;
       case 'pending-approvals': await renderPendingApprovals(mc); break;
@@ -709,7 +735,7 @@ async function notify(userId, title, message, projectId = null) {
 }
 
 async function notifyRole(role, title, message, projectId = null) {
-  const { data: users } = await sb.from('profiles').select('id').eq('role', role);
+  const { data: users } = await sb.from('app_users').select('id').eq('role', role).eq('is_active', true);
   if (!users) return;
   await Promise.all(users.map(u => notify(u.id, title, message, projectId)));
 }
@@ -2514,6 +2540,10 @@ async function renderMyTasks(mc) {
 }
 
 async function startTask(stepId) {
+  const { data: step } = await sb.from('process_steps').select('assigned_name').eq('id', stepId).single();
+  if (!currentUser?.is_super_admin && step?.assigned_name && step.assigned_name !== currentProfile?.full_name) {
+    showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return;
+  }
   await sb.from('process_steps').update({
     status: 'in_progress',
     started_at: new Date().toISOString(),
@@ -2556,6 +2586,9 @@ async function submitCompleteTask(stepId, projId, reason) {
     ? `[งานด่วนแทรก: ${document.getElementById('late-reason-input')?.value || '-'}]`
     : reason === 'late_self' ? '[ทำไม่ทันเอง]' : null;
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
+  if (!currentUser?.is_super_admin && step?.assigned_name && step.assigned_name !== currentProfile?.full_name) {
+    showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return;
+  }
   const newNotes = reasonNote ? ((step?.notes ? step.notes + ' ' : '') + reasonNote) : step?.notes;
   const now = new Date().toISOString();
   const { error } = await sb.from('process_steps').update({
@@ -2842,7 +2875,9 @@ async function submitQC(projId, p) {
 }
 
 async function renderQCHistory(mc) {
-  const { data } = await sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
+  const isSA = !!(currentUser?.is_super_admin);
+  const qcQuery = sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
+  const { data } = isSA ? await qcQuery : await qcQuery.eq('qc_inspector_id', currentProfile.id);
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📜 ประวัติ QC</div></div>
     <div class="card">
