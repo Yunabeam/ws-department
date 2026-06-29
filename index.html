@@ -285,7 +285,7 @@ let sidebarOpen = false;
 // ROLE LABELS
 // ============================================================
 // รายชื่อช่างและเครื่องจักร (แก้ไขได้ที่นี่)
-const WS_WORKERS = ['เรืองศิลป์','พิพัฒน์','ทศพร','ทองยศ','โกไซ','ศรันย์','วีระ'];
+const WS_WORKERS = ['เรืองศิลป์','พิพัฒน์','ทศพร','ทองยศ','MR.MYINT LAY (โกไซ)','ศรันย์','วีระ'];
 const WS_MACHINES = ['กลึง1','กลึง2','กลึง3','มิลลิ่ง','คว้าน','กระทุ้ง','ไส','เจียร์เล็ก','เจียร์ใหญ่','CNC','เจียรโรเตอร์รี่','เจียร์กลม','เจียรกลม1','เจียร์กลม2','สว่าน','สว่านเจาะ','เลื่อย'];
 
 function getWorkerList() {
@@ -1093,7 +1093,7 @@ async function loadAssignSteps(projId, workers) {
 
 async function assignWorker(stepId, projId, workerId, workerName) {
   if (!workerId) return;
-  await sb.from('process_steps').update({ assigned_to: workerId, assigned_name: workerName.split(' (')[0], status: 'assigned' }).eq('id', stepId);
+  await sb.from('process_steps').update({ assigned_to: workerId, assigned_name: workerName, status: 'assigned' }).eq('id', stepId);
   await sb.from('projects').update({ status: 'assigning' }).eq('id', projId);
   const { data: workers } = await sb.from('profiles').select('id,full_name,member_code').eq('role','ws_worker');
   await loadAssignSteps(projId, workers || []);
