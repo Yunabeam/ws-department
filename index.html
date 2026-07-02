@@ -494,6 +494,7 @@ async function doLogout() {
   localStorage.removeItem('ws_session');
   currentUser = null; currentProfile = null;
   window._wsProjects = null; window._wsStepMap = null; window._wsWorkers = null;
+  window._wsSummarySteps = null; window._wsAdhocTasks = null;
   window._allProjects = null; window._umUsers = null;
   localStorage.removeItem('ws_selected_worker');
   showLogin();
@@ -1676,15 +1677,17 @@ async function renderWSStatusPlan(mc) {
   if (nb) { if (needPlan.length) { nb.style.display='flex'; nb.textContent=needPlan.length; } else nb.style.display='none'; }
 
   const { data: adhocTasks } = await sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']);
+  // ภาพรวมช่างวันนี้ ต้องไม่ผูกกับสถานะโปรเจค (โปรเจคที่ QC ผ่าน/เสร็จแล้วยังต้องนับงานที่ทำวันนั้นได้)
+  const { data: summarySteps } = await sb.from('process_steps').select('*').not('planned_start', 'is', null);
 
   window._wsProjects = projects;
   window._wsStepMap = stepMap;
   window._wsWorkers = workerList;
   window._wsAdhocTasks = adhocTasks || [];
+  window._wsSummarySteps = summarySteps || [];
 
   const today = todayStr();
-  const allStepsFlat = Object.values(stepMap).flat();
-  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, today, adhocTasks || []);
+  const workerSummaryHtml = renderWorkerTodaySummary(workerList, window._wsSummarySteps, today, adhocTasks || []);
 
   mc.innerHTML = `
     <div class="section-header">
@@ -1760,8 +1763,21 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
     </div>`;
 }
 
+// เก็บ/ลบ step ใน cache ของ "ภาพรวมช่างวันนี้" ให้ตรงกับ planned_start ล่าสุด
+// (cache นี้ดึงอิสระจากสถานะโปรเจค ไม่งั้นงานที่ทำเสร็จแล้วในโปรเจคที่ผ่าน QC ไปแล้วจะหายจากภาพรวม)
+function _wsSyncSummaryCache(step) {
+  const arr = window._wsSummarySteps || (window._wsSummarySteps = []);
+  const idx = arr.findIndex(x => x.id === step.id);
+  if (!step.planned_start) {
+    if (idx !== -1) arr.splice(idx, 1);
+    return;
+  }
+  if (idx !== -1) arr[idx] = { ...arr[idx], ...step };
+  else arr.push({ ...step });
+}
+
 function wsRefreshSummary(dateStr) {
-  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const allStepsFlat = window._wsSummarySteps || [];
   const workers = window._wsWorkers || getWorkerList();
   const el = document.getElementById('ws-worker-summary');
   if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr, window._wsAdhocTasks||[]);
@@ -1782,15 +1798,17 @@ function wsShiftDay(delta) {
 async function wsSavePlanDates(stepId, field, val) {
   // update local cache
   const stepMap = window._wsStepMap || {};
+  let updatedStep = null;
   for (const steps of Object.values(stepMap)) {
     const s = steps.find(x => x.id === stepId);
-    if (s) { s[field === 'start' ? 'planned_start' : 'planned_end'] = val || null; }
+    if (s) { s[field === 'start' ? 'planned_start' : 'planned_end'] = val || null; updatedStep = s; }
   }
   // save to DB
   const upd = field === 'start' ? { planned_start: val||null } : { planned_end: val||null };
   await sb.from('process_steps').update(upd).eq('id', stepId);
+  if (updatedStep) _wsSyncSummaryCache(updatedStep);
   // refresh worker summary
-  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const allStepsFlat = window._wsSummarySteps || [];
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
   if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
@@ -1828,7 +1846,7 @@ function _wsRefreshPlanCell(stepId, projId) {
   if (!p || !s) return;
   cell.innerHTML = _wsPlanCellHtml(s, p);
   // also refresh worker summary
-  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const allStepsFlat = window._wsSummarySteps || [];
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
   if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
@@ -1837,20 +1855,24 @@ function _wsRefreshPlanCell(stepId, projId) {
 async function wsSetPlanToday(stepId, projId) {
   const today = todayStr();
   await sb.from('process_steps').update({ planned_start: today, planned_end: null }).eq('id', stepId);
+  let updatedStep = null;
   for (const steps of Object.values(window._wsStepMap||{})) {
     const s = steps.find(x => x.id === stepId);
-    if (s) { s.planned_start = today; s.planned_end = null; }
+    if (s) { s.planned_start = today; s.planned_end = null; updatedStep = s; }
   }
+  if (updatedStep) _wsSyncSummaryCache(updatedStep);
   showToast('วางแผนแล้ว ✅', 'success');
   _wsRefreshPlanCell(stepId, projId);
 }
 
 async function wsClearPlanDate(stepId, projId) {
   await sb.from('process_steps').update({ planned_start: null, planned_end: null }).eq('id', stepId);
+  let updatedStep = null;
   for (const steps of Object.values(window._wsStepMap||{})) {
     const s = steps.find(x => x.id === stepId);
-    if (s) { s.planned_start = null; s.planned_end = null; }
+    if (s) { s.planned_start = null; s.planned_end = null; updatedStep = s; }
   }
+  if (updatedStep) _wsSyncSummaryCache(updatedStep);
   _wsRefreshPlanCell(stepId, projId);
 }
 
@@ -1879,7 +1901,7 @@ function wsRefreshCard(projId) {
     }
   }
   // refresh worker summary
-  const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
+  const allStepsFlat = window._wsSummarySteps || [];
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
   if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
