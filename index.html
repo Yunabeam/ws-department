@@ -2754,7 +2754,7 @@ async function submitCompleteTask(stepId, projId) {
 // WS WORKER - TASK HISTORY
 // ============================================================
 async function renderTaskHistory(mc) {
-  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_to', currentProfile.id).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false });
+  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', currentProfile.full_name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false });
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📜 ประวัติงาน</div></div>
     <div class="card">
