@@ -1482,7 +1482,7 @@ async function renderKPIReport(mc, selMonth) {
     // Filter by selected month
     const myDone    = allDone.filter(s => s.worker_confirmed_at?.startsWith(month));
     const myFails   = allFails.filter(s => s.updated_at?.startsWith(month));
-    const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline);
+    const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline && !s.notes?.includes('[งานแทรก]'));
     const lateSelf  = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
     const monthHrs  = myDone.reduce((sum,s) => sum + getStepHours(s), 0);
     const score     = Math.max(0, 100 - late.length*W_LATE - myFails.length*W_QC - lateSelf.length*W_SELF);
@@ -1545,7 +1545,7 @@ async function renderKPIReport(mc, selMonth) {
         <span style="font-size:12px;color:var(--muted)">หัก ${W_LATE}/ล่าช้า · หัก ${W_QC}/QC Fail · หัก ${W_SELF}/ทำไม่ทันเอง · เป้า ${TARGET_HRS} ชม./เดือน</span>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th><th>เกรด</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th></tr></thead>
         <tbody>${kpiData.map(k => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
@@ -1561,8 +1561,7 @@ async function renderKPIReport(mc, selMonth) {
               <span style="font-size:12px;color:${k.workloadColor};font-weight:600">${k.workloadPct}%</span>
             </div>
           </td>
-          <td><b style="color:${gradeColor(k.grade)}">${k.score}</b></td>
-          <td><b style="font-size:16px;color:${gradeColor(k.grade)}">${k.grade}</b></td>
+          <td><b style="color:${gradeColor(k.score)}">${k.score}</b></td>
         </tr>`).join('')}
         </tbody>
       </table></div>
@@ -1676,19 +1675,25 @@ async function renderWSStatusPlan(mc) {
   const nb = document.getElementById('need-plan-badge');
   if (nb) { if (needPlan.length) { nb.style.display='flex'; nb.textContent=needPlan.length; } else nb.style.display='none'; }
 
+  const { data: adhocTasks } = await sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']);
+
   window._wsProjects = projects;
   window._wsStepMap = stepMap;
   window._wsWorkers = workerList;
+  window._wsAdhocTasks = adhocTasks || [];
 
   const today = todayStr();
   const allStepsFlat = Object.values(stepMap).flat();
-  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, today);
+  const workerSummaryHtml = renderWorkerTodaySummary(workerList, allStepsFlat, today, adhocTasks || []);
 
   mc.innerHTML = `
     <div class="section-header">
       <div class="section-title">📋 สถานะ &amp; วางแผนงาน</div>
     </div>
     <div id="ws-worker-summary">${workerSummaryHtml}</div>
+    <div style="margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="openAdhocTaskModal()">➕ สั่งงานเพิ่ม</button>
+    </div>
     <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
       <button class="btn btn-ghost btn-sm" onclick="wsShiftDay(-1)">◀</button>
       <input type="date" id="ws-summary-date" value="${today}" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px" onchange="wsRefreshSummary(this.value)">
@@ -1709,37 +1714,41 @@ async function renderWSStatusPlan(mc) {
 // ============================================================
 // WS MANAGER - WORKER TODAY SUMMARY
 // ============================================================
-function renderWorkerTodaySummary(workers, allStepsFlat, today) {
+function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = []) {
   const workerData = workers.map(w => {
     const tasks = allStepsFlat.filter(s => {
       if (s.assigned_name !== w) return false;
       if (!s.planned_start) return false;
       return dateInRange(today, s.planned_start, s.planned_end);
     });
+    const adhocs = adhocTasks.filter(t => t.assigned_name === w && ['assigned','in_progress'].includes(t.status));
     const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
     const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + getStepHours(s), 0);
     const allDone = tasks.length > 0 && tasks.every(s => ['confirmed','done_by_worker'].includes(s.status));
-    return { w, tasks, hrs, doneHrs, allDone };
+    return { w, tasks, hrs, doneHrs, allDone, adhocs };
   });
 
-  const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone}) => {
-    const hasWork = tasks.length > 0;
+  const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone, adhocs}) => {
+    const hasWork = tasks.length > 0 || adhocs.length > 0;
     const isFull = hrs >= 8;
-    const cardBg = allDone ? 'background:#f0fdf4;border:1.5px solid var(--green)' : isFull ? 'background:#fff7ed;border:1.5px solid var(--amber)' : hasWork ? 'border:1.5px solid var(--border)' : 'background:#f8fafc;border:1.5px solid #e2e8f0';
+    const cardBg = allDone && adhocs.length === 0 ? 'background:#f0fdf4;border:1.5px solid var(--green)' : isFull ? 'background:#fff7ed;border:1.5px solid var(--amber)' : adhocs.length > 0 ? 'background:#f0f9ff;border:1.5px solid var(--teal)' : hasWork ? 'border:1.5px solid var(--border)' : 'background:#f8fafc;border:1.5px solid #e2e8f0';
     const barColor = allDone ? 'var(--green)' : doneHrs > 0 ? 'var(--teal)' : isFull ? 'var(--amber)' : 'var(--primary)';
     const barWidth = hasWork ? Math.min(hrs / 8 * 100, 100) : 0;
     return `<div style="padding:10px 12px;border-radius:10px;min-width:120px;flex:1;${cardBg}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span style="font-size:13px;font-weight:700">${esc(w)}</span>
-        ${allDone ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px">เสร็จ</span>`
+        ${allDone && adhocs.length === 0 ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px">เสร็จ</span>`
           : isFull ? `<span style="font-size:10px;background:var(--amber);color:#fff;padding:1px 6px;border-radius:8px">เต็ม</span>`
+          : adhocs.length > 0 ? `<span style="font-size:10px;background:var(--teal);color:#fff;padding:1px 6px;border-radius:8px">ซัพพอร์ต</span>`
           : ''}
       </div>
       <div style="height:5px;background:#e2e8f0;border-radius:3px;margin-bottom:5px;overflow:hidden">
         <div style="height:100%;background:${barColor};width:${barWidth}%;border-radius:3px"></div>
       </div>
       <div style="font-size:12px;color:${isFull&&!allDone?'var(--amber)':hasWork?'var(--teal)':'var(--muted)'}">
-        ${hasWork ? `${hrs.toFixed(1)} ชม. · ${tasks.length} งาน` : `ว่าง`}
+        ${tasks.length > 0 ? `${hrs.toFixed(1)} ชม. · ${tasks.length} งาน` : ''}
+        ${adhocs.length > 0 ? `${tasks.length > 0 ? ' · ' : ''}${adhocs.length} งานซัพพอร์ต` : ''}
+        ${!hasWork ? 'ว่าง' : ''}
       </div>
     </div>`;
   }).join('');
@@ -1755,7 +1764,7 @@ function wsRefreshSummary(dateStr) {
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
   const el = document.getElementById('ws-worker-summary');
-  if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr);
+  if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr, window._wsAdhocTasks||[]);
   const input = document.getElementById('ws-summary-date');
   if (input) input.value = dateStr;
 }
@@ -1784,7 +1793,7 @@ async function wsSavePlanDates(stepId, field, val) {
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
-  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
 }
 
 function _wsPlanCellHtml(s, p) {
@@ -1822,7 +1831,7 @@ function _wsRefreshPlanCell(stepId, projId) {
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
-  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
 }
 
 async function wsSetPlanToday(stepId, projId) {
@@ -1873,7 +1882,7 @@ function wsRefreshCard(projId) {
   const allStepsFlat = Object.values(window._wsStepMap||{}).flat();
   const workers = window._wsWorkers || getWorkerList();
   const summaryEl = document.getElementById('ws-worker-summary');
-  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr());
+  if (summaryEl) summaryEl.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, todayStr(), window._wsAdhocTasks||[]);
 }
 
 function wsFilter(f, btn) {
@@ -2397,24 +2406,35 @@ async function renderWSProcessPlans(mc) {
 // WS MANAGER - CONFIRM STEPS
 // ============================================================
 async function renderWSConfirmSteps(mc) {
-  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name,id)').eq('status','done_by_worker').order('worker_confirmed_at');
-  const count = (steps||[]).length;
+  const [{ data: steps }, { data: adhocs }] = await Promise.all([
+    sb.from('process_steps').select('*,projects(project_no,name,id)').eq('status','done_by_worker').order('worker_confirmed_at'),
+    sb.from('adhoc_tasks').select('*').eq('status','done').order('completed_at'),
+  ]);
+  const count = (steps||[]).length + (adhocs||[]).length;
   const cb = document.getElementById('confirm-badge');
   if (cb) { if (count > 0) { cb.style.display='flex'; cb.textContent=count; } else cb.style.display='none'; }
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">✅ ยืนยันงานลูกน้อง</div></div>
     <div class="card">
-      ${(steps||[]).length === 0 ? '<div class="empty"><div class="empty-icon">✅</div>ไม่มีงานรอยืนยัน</div>' : `
+      ${count === 0 ? '<div class="empty"><div class="empty-icon">✅</div>ไม่มีงานรอยืนยัน</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน</th><th>ลูกน้อง</th><th>เสร็จเมื่อ</th><th></th></tr></thead>
-        <tbody>${(steps||[]).map(s => `
+        <thead><tr><th>ประเภท</th><th>งาน</th><th>ลูกน้อง</th><th>เสร็จเมื่อ</th><th></th></tr></thead>
+        <tbody>
+          ${(steps||[]).map(s => `
           <tr>
-            <td><b>${esc(s.projects?.project_no||'-')}</b><br><small>${esc(s.projects?.name||'-')}</small></td>
-            <td>${s.seq}</td>
+            <td><span style="font-size:11px;background:var(--primary);color:#fff;padding:2px 7px;border-radius:8px">โปรเจค</span><br><small>${esc(s.projects?.project_no||'-')}</small></td>
             <td>${esc(s.step_name)}</td>
             <td>${esc(s.assigned_name||'-')}</td>
             <td>${timeAgo(s.worker_confirmed_at)}</td>
-            <td><button class="btn btn-sm btn-green" onclick="confirmStep('${s.id}','${s.project_id}')">✅ ยืนยัน</button></td>
+            <td><button class="btn btn-sm btn-green" onclick="openConfirmStepModal('${s.id}','${s.project_id}')">✅ ยืนยัน</button></td>
+          </tr>`).join('')}
+          ${(adhocs||[]).map(t => `
+          <tr>
+            <td><span style="font-size:11px;background:var(--teal);color:#fff;padding:2px 7px;border-radius:8px">ซัพพอร์ต</span></td>
+            <td>${esc(t.task_name)}${t.estimated_hours ? `<br><small>${t.estimated_hours} ชม.</small>` : ''}</td>
+            <td>${esc(t.assigned_name||'-')}</td>
+            <td>${timeAgo(t.completed_at)}</td>
+            <td><button class="btn btn-sm btn-green" onclick="confirmAdhocTask('${t.id}')">✅ ยืนยัน</button></td>
           </tr>`).join('')}
         </tbody>
       </table></div>`}
@@ -2422,8 +2442,40 @@ async function renderWSConfirmSteps(mc) {
   `;
 }
 
-async function confirmStep(stepId, projId) {
-  await sb.from('process_steps').update({ status: 'confirmed', manager_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+async function confirmAdhocTask(id) {
+  const { error } = await sb.from('adhoc_tasks').update({ status: 'confirmed' }).eq('id', id);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ยืนยันเสร็จแล้ว', 'success');
+  renderWSConfirmSteps(document.getElementById('main-content'));
+}
+
+function openConfirmStepModal(stepId, projId) {
+  openModal('ยืนยันงาน', `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;background:#fefce8;border:1.5px solid var(--amber);border-radius:8px">
+        <input type="checkbox" id="chk-urgent-task" style="margin-top:2px;width:16px;height:16px;flex-shrink:0" onchange="document.getElementById('urgent-note-wrap').style.display=this.checked?'block':'none'">
+        <div>
+          <div style="font-weight:600;font-size:14px">⚡ มีงานแทรก</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">ช่างทำงานช้าเพราะถูกดึงไปทำงานด่วน — ไม่หัก KPI</div>
+        </div>
+      </label>
+      <div id="urgent-note-wrap" style="display:none">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">งานแทรกคืออะไร</label>
+        <input id="urgent-note-input" type="text" placeholder="เช่น งาน PRJ-70-002 เร่งด่วน" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+      </div>
+    </div>
+  `, [
+    { label: 'ยืนยัน', cls: 'btn-green', action: () => confirmStep(stepId, projId, document.getElementById('chk-urgent-task')?.checked, document.getElementById('urgent-note-input')?.value?.trim()) },
+    { label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal },
+  ]);
+}
+
+async function confirmStep(stepId, projId, hasUrgentTask = false, urgentNote = '') {
+  const { data: step } = await sb.from('process_steps').select('notes').eq('id', stepId).single();
+  const existingNotes = step?.notes || '';
+  const urgentTag = hasUrgentTask ? `[งานแทรก${urgentNote ? ': ' + urgentNote : ''}]` : '';
+  const newNotes = urgentTag ? (existingNotes ? existingNotes + ' ' + urgentTag : urgentTag) : existingNotes;
+  await sb.from('process_steps').update({ status: 'confirmed', manager_confirmed_at: new Date().toISOString(), notes: newNotes }).eq('id', stepId);
   const { data: allSteps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const allDone = allSteps && allSteps.every(s => s.status === 'confirmed' || s.id === stepId);
@@ -2476,9 +2528,14 @@ async function renderMyTasks(mc) {
     }
   }
 
-  const { data: allStepsRaw } = await sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).eq('assigned_name', myName).order('seq');
+  const [{ data: allStepsRaw }, { data: adhocRaw }] = await Promise.all([
+    sb.from('process_steps').select('*,projects(project_no,name,id,qty,group_no)').in('status',['assigned','in_progress','done_by_worker']).eq('assigned_name', myName).order('seq'),
+    sb.from('adhoc_tasks').select('*').eq('assigned_name', myName).in('status',['assigned','in_progress','done']).order('created_at'),
+  ]);
   const today = todayStr();
   const steps = (allStepsRaw || []).filter(s => !!s.planned_start);
+  const adhocActive = (adhocRaw || []).filter(t => ['assigned','in_progress'].includes(t.status));
+  const adhocDone   = (adhocRaw || []).filter(t => t.status === 'done');
   const active = steps.filter(s => ['assigned','in_progress'].includes(s.status));
   const waiting = steps.filter(s => s.status === 'done_by_worker');
   const totalAssigned = (allStepsRaw || []).length;
@@ -2488,7 +2545,7 @@ async function renderMyTasks(mc) {
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">🔧 งานของฉัน</div></div>
     ${workerSelectorHtml}
-    ${active.length === 0 && waiting.length === 0 ? emptyMsg : ''}
+    ${active.length === 0 && waiting.length === 0 && adhocActive.length === 0 && adhocDone.length === 0 ? emptyMsg : ''}
     ${active.map(s => `<div class="card">
       <div class="card-header">
         <div>
@@ -2543,7 +2600,103 @@ async function renderMyTasks(mc) {
           <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${s.qty} ชิ้น</div></div>
         </div>
       </div>`).join('')}` : ''}
+    ${adhocActive.length > 0 || adhocDone.length > 0 ? `
+      <div style="margin-top:20px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px;font-weight:700">🛠 งานซัพพอร์ต (สั่งโดยหัวหน้า WS)</span>
+      </div>
+      ${adhocActive.map(t => `<div class="card" style="border-left:4px solid var(--primary)">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${esc(t.task_name)}</div>
+            ${t.estimated_hours ? `<div style="color:var(--muted);font-size:13px">ประมาณ ${t.estimated_hours} ชม.</div>` : ''}
+          </div>
+          ${statusBadge(t.status)}
+        </div>
+        ${t.notes ? `<div style="font-size:13px;color:var(--muted)">หมายเหตุ: ${esc(t.notes)}</div>` : ''}
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          ${t.status === 'assigned' ? `<button class="btn btn-amber" onclick="startAdhocTask('${t.id}')">▶️ เริ่มทำงาน</button>` : ''}
+          ${t.status === 'in_progress' ? `<button class="btn btn-green" onclick="completeAdhocTask('${t.id}')">✅ เสร็จแล้ว</button>` : ''}
+        </div>
+      </div>`).join('')}
+      ${adhocDone.length > 0 ? `
+        <div style="margin-top:12px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">รอหัวหน้ายืนยัน</div>
+        ${adhocDone.map(t => `<div class="card" style="border-left:4px solid var(--amber);opacity:.8">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">⏳</span>
+            <div>
+              <div class="card-title">${esc(t.task_name)}</div>
+              ${t.estimated_hours ? `<div style="color:var(--muted);font-size:13px">ประมาณ ${t.estimated_hours} ชม.</div>` : ''}
+            </div>
+            <span class="status s-done_by_worker" style="margin-left:auto">รอตรวจรับ</span>
+          </div>
+        </div>`).join('')}` : ''}
+    ` : ''}
   `;
+}
+
+function openAdhocTaskModal(preselected = '') {
+  const workers = getWorkerList();
+  openModal('➕ สั่งงานเพิ่ม', `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ช่าง</label>
+        <select id="adhoc-worker" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+          <option value="">— เลือกช่าง —</option>
+          ${workers.map(w => `<option value="${esc(w)}" ${w===preselected?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ชื่องาน</label>
+        <input id="adhoc-task-name" type="text" placeholder="เช่น ทำความสะอาดเครื่อง, ช่วยงานสต็อก" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">เวลาโดยประมาณ (ชม.) — ถ้าไม่รู้ปล่อยว่าง</label>
+        <input id="adhoc-hours" type="text" inputmode="decimal" placeholder="เช่น 2 หรือ 2.5" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">หมายเหตุ (ถ้ามี)</label>
+        <input id="adhoc-notes" type="text" placeholder="รายละเอียดเพิ่มเติม" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+      </div>
+    </div>
+  `, [
+    { label: 'สั่งงาน', cls: 'btn-primary', action: saveAdhocTask },
+    { label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal },
+  ]);
+}
+
+async function saveAdhocTask() {
+  const workerName = document.getElementById('adhoc-worker')?.value;
+  const taskName   = document.getElementById('adhoc-task-name')?.value?.trim();
+  const hours      = parseFloat(document.getElementById('adhoc-hours')?.value) || 0;
+  const notes      = document.getElementById('adhoc-notes')?.value?.trim();
+  if (!workerName) { showToast('กรุณาเลือกช่าง', 'error'); return; }
+  if (!taskName)   { showToast('กรุณาใส่ชื่องาน', 'error'); return; }
+  const { data: user } = await sb.from('app_users').select('id').eq('full_name', workerName).single();
+  const { error } = await sb.from('adhoc_tasks').insert({
+    assigned_to: user?.id || null,
+    assigned_name: workerName,
+    task_name: taskName,
+    estimated_hours: hours || null,
+    notes: notes || null,
+    created_by: currentProfile.id,
+    status: 'assigned',
+  });
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  closeModal();
+  showToast(`สั่งงาน ${workerName} แล้ว`, 'success');
+}
+
+async function startAdhocTask(id) {
+  await sb.from('adhoc_tasks').update({ status: 'in_progress', started_at: new Date().toISOString() }).eq('id', id);
+  showToast('เริ่มงานแล้ว', 'success');
+  renderMyTasks(document.getElementById('main-content'));
+}
+
+async function completeAdhocTask(id) {
+  const now = new Date().toISOString();
+  await sb.from('adhoc_tasks').update({ status: 'done', completed_at: now }).eq('id', id);
+  showToast('แจ้งเสร็จแล้ว', 'success');
+  renderMyTasks(document.getElementById('main-content'));
 }
 
 async function startTask(stepId) {
@@ -2570,47 +2723,30 @@ async function completeTask(stepId, projId) {
   openModal('แจ้งสถานะงาน', `
     ${deadlineText ? `<p style="font-size:13px;color:var(--muted);margin-bottom:12px">${deadlineText}</p>` : ''}
     <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-green" style="text-align:left;padding:12px;font-size:14px" onclick="submitCompleteTask('${stepId}','${projId}',null)">
-        ✅ ทำเสร็จแล้ว → ส่งหัวหน้า WS ยืนยัน
-      </button>
-      <button class="btn btn-amber" style="text-align:left;padding:12px;font-size:14px" onclick="document.getElementById('late-reason-section').style.display='block'">
-        ⚡ ติดงานด่วนแทรก ยังทำไม่เสร็จ
-      </button>
-      <div id="late-reason-section" style="display:none;padding:10px;background:#fffbeb;border-radius:8px;border:1px solid var(--amber)">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">ระบุงานที่มาแทรก:</label>
-        <input id="late-reason-input" placeholder="เช่น งาน PRJ-69-005 เร่งด่วน" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px">
-        <button class="btn btn-primary" style="margin-top:8px;width:100%" onclick="submitCompleteTask('${stepId}','${projId}','urgent')">ยืนยัน</button>
-      </div>
-      <button class="btn" style="text-align:left;padding:12px;font-size:14px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5" onclick="submitCompleteTask('${stepId}','${projId}','late_self')">
-        😓 ทำไม่ทันเอง ยังทำไม่เสร็จ
+      <button class="btn btn-green" style="text-align:left;padding:12px;font-size:14px" onclick="submitCompleteTask('${stepId}','${projId}')">
+        ✅ เสร็จแล้ว → ส่งหัวหน้า WS ยืนยัน
       </button>
     </div>
   `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
 }
 
-async function submitCompleteTask(stepId, projId, reason) {
-  const reasonNote = reason === 'urgent'
-    ? `[งานด่วนแทรก: ${document.getElementById('late-reason-input')?.value || '-'}]`
-    : reason === 'late_self' ? '[ทำไม่ทันเอง]' : null;
+async function submitCompleteTask(stepId, projId) {
   const { data: step } = await sb.from('process_steps').select('*').eq('id', stepId).single();
   if (!currentUser?.is_super_admin && step?.assigned_name && step.assigned_name !== currentProfile?.full_name) {
     showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return;
   }
-  const newNotes = reasonNote ? ((step?.notes ? step.notes + ' ' : '') + reasonNote) : step?.notes;
   const now = new Date().toISOString();
   const { error } = await sb.from('process_steps').update({
     status: 'done_by_worker',
     worker_confirmed_at: now,
     actual_completed_at: now,
-    // ถ้ายังไม่เคยกด "เริ่ม" ให้ set started_at ด้วย
     ...(step?.started_at ? {} : { started_at: now }),
-    notes: newNotes || step?.notes,
+    notes: step?.notes,
   }).eq('id', stepId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   closeModal();
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
-  const lateMsg = reason === 'late_self' ? ' (ทำไม่ทันเอง)' : reason === 'urgent' ? ' (งานด่วนแทรก)' : '';
-  if (p) await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step?.seq}: ${step?.step_name} โดย ${currentProfile.full_name}${lateMsg}`, projId);
+  if (p) await notifyRole('ws_manager', `🔔 ลูกน้องทำเสร็จแล้ว: ${p.project_no}`, `ขั้นตอน ${step?.seq}: ${step?.step_name} โดย ${currentProfile.full_name}`, projId);
   showToast('ยืนยันงานเสร็จแล้ว', 'success'); navigateTo('my-tasks');
 }
 
