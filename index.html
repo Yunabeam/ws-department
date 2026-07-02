@@ -1737,7 +1737,7 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
     const cardBg = allDone && adhocs.length === 0 ? 'background:#f0fdf4;border:1.5px solid var(--green)' : isFull ? 'background:#fff7ed;border:1.5px solid var(--amber)' : adhocs.length > 0 ? 'background:#f0f9ff;border:1.5px solid var(--teal)' : hasWork ? 'border:1.5px solid var(--border)' : 'background:#f8fafc;border:1.5px solid #e2e8f0';
     const barColor = allDone ? 'var(--green)' : doneHrs > 0 ? 'var(--teal)' : isFull ? 'var(--amber)' : 'var(--primary)';
     const barWidth = hasWork ? Math.min(hrs / 8 * 100, 100) : 0;
-    return `<div style="padding:10px 12px;border-radius:10px;min-width:120px;flex:1;${cardBg}">
+    return `<div style="padding:10px 12px;border-radius:10px;min-width:120px;flex:1;cursor:pointer;${cardBg}" onclick="openWorkerDayDetail('${esc(w)}','${today}')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span style="font-size:13px;font-weight:700">${esc(w)}</span>
         ${allDone && adhocs.length === 0 ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px">เสร็จ</span>`
@@ -1761,6 +1761,48 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ภาพรวมช่างวันนี้ · ${fmtDate(today)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>
     </div>`;
+}
+
+async function openWorkerDayDetail(workerName, dateStr) {
+  const tasks = (window._wsSummarySteps || []).filter(s =>
+    s.assigned_name === workerName && s.planned_start && dateInRange(dateStr, s.planned_start, s.planned_end));
+  const adhocs = (window._wsAdhocTasks || []).filter(t => t.assigned_name === workerName);
+
+  if (!tasks.length && !adhocs.length) {
+    openModal(`🔧 งานของ ${esc(workerName)}`, `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในวันที่ ${fmtDate(dateStr)}</div>`);
+    return;
+  }
+
+  // ดึงข้อมูลโปรเจคสดจาก Supabase — ไม่พึ่ง cache ที่กรองเฉพาะโปรเจค active เพราะโปรเจคอาจเลื่อนสถานะไปแล้ว
+  const projIds = [...new Set(tasks.map(s => s.project_id).filter(Boolean))];
+  const projMap = {};
+  if (projIds.length) {
+    const { data: projs } = await sb.from('projects').select('id,project_no,name').in('id', projIds);
+    (projs || []).forEach(p => { projMap[p.id] = p; });
+  }
+
+  const stepRows = tasks.map(s => {
+    const p = projMap[s.project_id];
+    return `<div class="step-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <b>${esc(p?.project_no || '-')} ${esc(p?.name || '')}</b>
+        ${statusBadge(s.status)}
+      </div>
+      <div style="font-size:13px;color:var(--muted)">ขั้นตอน ${s.seq}: ${esc(s.step_name)} · ${esc(s.machine || '-')} · Part No: ${esc(s.part_no || '-')} · จำนวน ${s.qty} ชิ้น</div>
+      ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">หมายเหตุ: ${esc(s.notes)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const adhocRows = adhocs.map(t => `<div class="step-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <b>🔧 งานซัพพอร์ต: ${esc(t.task_name)}</b>
+      ${statusBadge(t.status)}
+    </div>
+    ${t.estimated_hours ? `<div style="font-size:13px;color:var(--muted)">ประมาณ ${t.estimated_hours} ชม.</div>` : ''}
+    ${t.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">หมายเหตุ: ${esc(t.notes)}</div>` : ''}
+  </div>`).join('');
+
+  openModal(`🔧 งานของ ${esc(workerName)} · ${fmtDate(dateStr)}`, stepRows + adhocRows);
 }
 
 // เก็บ/ลบ step ใน cache ของ "ภาพรวมช่างวันนี้" ให้ตรงกับ planned_start ล่าสุด
