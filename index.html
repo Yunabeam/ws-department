@@ -1554,10 +1554,7 @@ async function renderKPIReport(mc, selMonth) {
           <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'}">${k.fails}</span></td>
           <td><span style="color:${k.late>0?'#d97706':'#16a34a'}">${k.late}</span></td>
           <td><span style="color:${k.lateSelf>0?'#dc2626':'#16a34a'}">${k.lateSelf}</span></td>
-          <td>${k.urgentSteps.length > 0
-            ? `<span style="color:var(--amber);cursor:pointer;font-weight:600" title="${k.urgentSteps.map(s=>s.notes?.match(/\[งานแทรก([^\]]*)\]/)?.[0]||'[งานแทรก]').join(', ')}" onclick="showUrgentDetail('${esc(k.w)}',${JSON.stringify(k.urgentSteps.map(s=>({n:s.step_name,note:s.notes||''})))})">${k.urgentSteps.length} ครั้ง ℹ️</span>`
-            : `<span style="color:#16a34a">0</span>`
-          }</td>
+          <td><span style="color:${k.urgentSteps.length>0?'var(--amber)':'#16a34a'};cursor:pointer;font-weight:600" onclick="showUrgentDetail('${esc(k.w)}',${JSON.stringify(k.urgentSteps.map(s=>({n:s.step_name,note:s.notes||''})))})">${k.urgentSteps.length} ครั้ง ℹ️</span></td>
           <td>${k.monthHrs.toFixed(1)} ชม.</td>
           <td>
             <div style="display:flex;align-items:center;gap:6px">
