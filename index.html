@@ -1485,13 +1485,14 @@ async function renderKPIReport(mc, selMonth) {
     const myFails   = allFails.filter(s => s.updated_at?.startsWith(month));
     const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline && !s.notes?.includes('[งานแทรก]'));
     const lateSelf  = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
+    const urgentSteps = myDone.filter(s => s.notes?.includes('[งานแทรก]'));
     const monthHrs  = myDone.reduce((sum,s) => sum + getStepHours(s), 0);
     const score     = Math.max(0, 100 - late.length*W_LATE - myFails.length*W_QC - lateSelf.length*W_SELF);
     const grade     = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
     const lastDone  = allDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
     const workloadPct = TARGET_HRS > 0 ? Math.min(Math.round(monthHrs/TARGET_HRS*100),999) : 0;
     const workloadColor = workloadPct>110?'#dc2626':workloadPct>=80?'#16a34a':'#d97706';
-    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
+    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
   });
 
   // Manager KPI (month-based)
@@ -1546,13 +1547,17 @@ async function renderKPIReport(mc, selMonth) {
         <span style="font-size:12px;color:var(--muted)">หัก ${W_LATE}/ล่าช้า · หัก ${W_QC}/QC Fail · หัก ${W_SELF}/ทำไม่ทันเอง · เป้า ${TARGET_HRS} ชม./เดือน</span>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th></tr></thead>
+        <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>งานแทรก</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th></tr></thead>
         <tbody>${kpiData.map(k => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
           <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'}">${k.fails}</span></td>
           <td><span style="color:${k.late>0?'#d97706':'#16a34a'}">${k.late}</span></td>
           <td><span style="color:${k.lateSelf>0?'#dc2626':'#16a34a'}">${k.lateSelf}</span></td>
+          <td>${k.urgentSteps.length > 0
+            ? `<span style="color:var(--amber);cursor:pointer;font-weight:600" title="${k.urgentSteps.map(s=>s.notes?.match(/\[งานแทรก([^\]]*)\]/)?.[0]||'[งานแทรก]').join(', ')}" onclick="showUrgentDetail('${esc(k.w)}',${JSON.stringify(k.urgentSteps.map(s=>({n:s.step_name,note:s.notes||''})))})">${k.urgentSteps.length} ครั้ง ℹ️</span>`
+            : `<span style="color:#16a34a">0</span>`
+          }</td>
           <td>${k.monthHrs.toFixed(1)} ชม.</td>
           <td>
             <div style="display:flex;align-items:center;gap:6px">
@@ -2696,6 +2701,23 @@ async function renderMyTasks(mc) {
         </div>`).join('')}` : ''}
     ` : ''}
   `;
+}
+
+function showUrgentDetail(workerName, steps) {
+  const rows = steps.map(s => {
+    const match = s.note.match(/\[งานแทรก(?:: ?([^\]]*))?\]/);
+    const detail = match?.[1] ? match[1] : '-';
+    return `<tr>
+      <td>${esc(s.n)}</td>
+      <td style="color:var(--amber)">${esc(detail)}</td>
+    </tr>`;
+  }).join('');
+  openModal(`⚡ งานแทรกของ ${esc(workerName)}`, `
+    <div class="table-wrap"><table>
+      <thead><tr><th>ขั้นตอน</th><th>รายละเอียดงานแทรก</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  `, [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
 }
 
 function openAdhocTaskModal(preselected = '') {
