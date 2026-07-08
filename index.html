@@ -632,7 +632,7 @@ async function navigateTo(page, silent = false) {
     const role = currentProfile?.role;
     const isSA = !!(currentUser?.is_super_admin);
     const PAGE_ROLES = {
-      'dashboard':        ['eng_manager','executive'],
+      'dashboard':        ['eng_manager','ws_manager','executive'],
       'pending-approvals':['eng_manager'],
       'all-projects':     ['eng_manager','executive'],
       'assign-workers':   ['eng_manager'],
