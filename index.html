@@ -540,7 +540,7 @@ function switchRole(role) {
 function getDefaultPage() {
   const r = currentProfile.role;
   if (r === 'eng_manager') return 'dashboard';
-  if (r === 'ws_manager') return 'ws-status-plan';
+  if (r === 'ws_manager') return 'dashboard';
   if (r === 'ws_worker') return 'my-tasks';
   if (r === 'user') return 'create-request';
   if (r === 'qc') return 'qc-queue';
