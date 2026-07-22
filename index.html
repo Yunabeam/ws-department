@@ -1307,6 +1307,87 @@ async function deleteUser(userId) {
 }
 
 // ============================================================
+// EXPORT DATA
+// ============================================================
+async function renderExportData(mc) {
+  mc.innerHTML = `
+    <div class="section-header"><div class="section-title">📤 Export Excel</div><div class="section-sub">ดาวน์โหลดข้อมูลเป็นไฟล์ Excel</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:8px">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:18px">📁</div>
+        <div style="font-weight:600;font-size:15px">ประวัติงานทั้งหมด</div>
+        <div style="font-size:13px;color:var(--muted)">รายการขั้นตอนงานทุกโปรเจค พร้อมสถานะ ช่าง และเวลา</div>
+        <button class="btn btn-green" onclick="exportProcessSteps()">⬇️ ดาวน์โหลด</button>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:18px">📈</div>
+        <div style="font-weight:600;font-size:15px">KPI ช่าง</div>
+        <div style="font-size:13px;color:var(--muted)">สรุปผลงานรายช่าง จำนวนงาน ตรงเวลา สาย และงานแทรก</div>
+        <button class="btn btn-green" onclick="exportKPI()">⬇️ ดาวน์โหลด</button>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:18px">🔧</div>
+        <div style="font-weight:600;font-size:15px">งานซัพพอร์ต</div>
+        <div style="font-size:13px;color:var(--muted)">รายการ adhoc task ที่หัวหน้า WS สั่งงานนอกแผน</div>
+        <button class="btn btn-green" onclick="exportAdhoc()">⬇️ ดาวน์โหลด</button>
+      </div>
+    </div>
+  `;
+}
+
+function downloadXLSX(rows, filename) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
+}
+
+async function exportProcessSteps() {
+  showToast('กำลังดาวน์โหลด...', 'info');
+  const { data } = await sb.from('process_steps').select('*,projects(project_no,name)').order('created_at');
+  if (!data) { showToast('ไม่พบข้อมูล', 'error'); return; }
+  const rows = [['โปรเจค', 'ชื่องาน', 'ขั้นตอน', 'ชื่อขั้นตอน', 'เครื่อง', 'ช่าง', 'สถานะ', 'เริ่มงาน', 'เสร็จงาน', 'ยืนยันโดยหัวหน้า', 'หมายเหตุ']];
+  data.forEach(s => rows.push([
+    s.projects?.project_no || '', s.projects?.name || '', s.seq || '', s.step_name || '',
+    s.machine || '', s.assigned_name || '', s.status || '',
+    s.started_at ? s.started_at.substring(0,16).replace('T',' ') : '',
+    s.actual_completed_at ? s.actual_completed_at.substring(0,16).replace('T',' ') : '',
+    s.manager_confirmed_at ? s.manager_confirmed_at.substring(0,16).replace('T',' ') : '',
+    s.notes || '',
+  ]));
+  downloadXLSX(rows, 'ประวัติงาน.xlsx');
+}
+
+async function exportKPI() {
+  showToast('กำลังดาวน์โหลด...', 'info');
+  const { data } = await sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed');
+  if (!data) { showToast('ไม่พบข้อมูล', 'error'); return; }
+  const workers = getWorkerList();
+  const rows = [['ช่าง', 'งานทั้งหมด', 'ตรงเวลา', 'สาย', 'งานแทรก']];
+  workers.forEach(w => {
+    const mine = data.filter(s => s.assigned_name === w);
+    const late = mine.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline && !s.notes?.includes('[งานแทรก]'));
+    const urgent = mine.filter(s => s.notes?.includes('[งานแทรก]'));
+    rows.push([w, mine.length, mine.length - late.length - urgent.length, late.length, urgent.length]);
+  });
+  downloadXLSX(rows, 'KPI_ช่าง.xlsx');
+}
+
+async function exportAdhoc() {
+  showToast('กำลังดาวน์โหลด...', 'info');
+  const { data } = await sb.from('adhoc_tasks').select('*').order('created_at');
+  if (!data) { showToast('ไม่พบข้อมูล', 'error'); return; }
+  const rows = [['ชื่องาน', 'ช่าง', 'ประมาณ (ชม.)', 'สถานะ', 'วันที่สร้าง', 'เริ่มงาน', 'เสร็จงาน', 'หมายเหตุ']];
+  data.forEach(t => rows.push([
+    t.task_name || '', t.assigned_name || '', t.estimated_hours || 0, t.status || '',
+    t.created_at ? t.created_at.substring(0,16).replace('T',' ') : '',
+    t.started_at ? t.started_at.substring(0,16).replace('T',' ') : '',
+    t.completed_at ? t.completed_at.substring(0,16).replace('T',' ') : '',
+    t.notes || '',
+  ]));
+  downloadXLSX(rows, 'งานซัพพอร์ต.xlsx');
+}
+
 // MONITOR REAL-TIME
 // ============================================================
 async function renderWSMonitor(mc, selDate) {
