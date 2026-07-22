@@ -2512,6 +2512,14 @@ async function renderWSConfirmSteps(mc) {
   `;
 }
 
+async function deleteAdhocTask(id) {
+  if (!confirm('ลบงานซัพพอร์ตนี้?')) return;
+  const { error } = await sb.from('adhoc_tasks').delete().eq('id', id);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ลบเรียบร้อย', 'success');
+  renderWSConfirmSteps(document.getElementById('main-content'));
+}
+
 async function confirmAdhocTask(id) {
   const { error } = await sb.from('adhoc_tasks').update({ status: 'confirmed' }).eq('id', id);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
