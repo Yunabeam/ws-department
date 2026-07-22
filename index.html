@@ -2501,7 +2501,10 @@ async function renderWSConfirmSteps(mc) {
             <td>${esc(t.task_name)}${t.estimated_hours ? `<br><small>${t.estimated_hours} ชม.</small>` : ''}</td>
             <td>${esc(t.assigned_name||'-')}</td>
             <td>${timeAgo(t.completed_at)}</td>
-            <td><button class="btn btn-sm btn-green" onclick="confirmAdhocTask('${t.id}')">✅ ยืนยัน</button></td>
+            <td style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-green" onclick="confirmAdhocTask('${t.id}')">✅ ยืนยัน</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteAdhocTask('${t.id}')">🗑 ลบ</button>
+            </td>
           </tr>`).join('')}
         </tbody>
       </table></div>`}
