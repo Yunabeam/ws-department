@@ -652,6 +652,7 @@ async function navigateTo(page, silent = false) {
       'exec-approvals':   ['executive'],
       'manage-users':     ['eng_manager'],
       'ws-monitor':       ['eng_manager','ws_manager','user','qc','executive'],
+      'export-data':      ['eng_manager','ws_manager','executive'],
     };
     if (!isSA && PAGE_ROLES[page] && !PAGE_ROLES[page].includes(role)) {
       mc.innerHTML = '<div class="card"><p style="color:var(--red)">⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p></div>';
