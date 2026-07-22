@@ -676,6 +676,7 @@ async function navigateTo(page, silent = false) {
       case 'exec-approvals': await renderExecApprovals(mc); break;
       case 'manage-users': await renderUserManagement(mc); break;
       case 'ws-monitor': await renderWSMonitor(mc); break;
+      case 'export-data': await renderExportData(mc); break;
       default: mc.innerHTML = '<div class="card"><p>ไม่พบหน้านี้</p></div>';
     }
   } catch(e) {
