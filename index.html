@@ -1500,7 +1500,7 @@ async function renderWSMonitor(mc, selDate) {
     if (!el) return;
     const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
     if (mySteps.length === 0 && myAdhocs.length === 0) { el.innerHTML = `<div class="card" style="color:var(--text-secondary);text-align:center;padding:20px">ไม่มีงานวันนี้</div>`; return; }
-    const ADHOC_STATUS_LABEL = { assigned:'ยังไม่เริ่ม', in_progress:'กำลังทำ', done:'เสร็จแล้ว', confirmed:'ยืนยันแล้ว' };
+    const ADHOC_STATUS_LABEL = { assigned:'ยังไม่เริ่ม', in_progress:'กำลังทำ', done:'รอหัวหน้ายืนยัน', confirmed:'ยืนยันแล้ว' };
     const ADHOC_STATUS_COLOR = { assigned:'#cbd5e1', in_progress:'#3b82f6', done:'#f59e0b', confirmed:'#22c55e' };
     el.innerHTML = `
       <div class="card">
