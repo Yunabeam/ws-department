@@ -1455,18 +1455,22 @@ async function renderWSMonitor(mc, selDate) {
       ${workers.map(w => {
         const mySteps = allSteps.filter(s => s.assigned_name === w);
         const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
+        const myAdhocActive = myAdhocs.filter(t => ['assigned','in_progress'].includes(t.status));
+        const myAdhocDone = myAdhocs.filter(t => ['done','confirmed'].includes(t.status));
         const done = mySteps.filter(s => ['confirmed','done_by_worker'].includes(s.status));
         const inProg = mySteps.filter(s => s.status === 'in_progress');
         const totalPlanMins = mySteps.reduce((sum,s) => sum + (plannedMins(s)||0), 0);
-        const allDone = mySteps.length > 0 && done.length === mySteps.length;
-        const hasAdhoc = myAdhocs.length > 0;
-        const cardBorder = allDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : hasAdhoc ? '2px solid #0d9488' : '1.5px solid var(--border)';
-        const cardBg = allDone ? '#f0fdf4' : hasAdhoc && mySteps.length === 0 ? '#f0f9ff' : 'var(--surface)';
-        const statusTag = allDone
+        const allStepsDone = mySteps.length > 0 && done.length === mySteps.length;
+        const allDone = allStepsDone && myAdhocActive.length === 0;
+        const hasAdhocActive = myAdhocActive.length > 0;
+        const onlyAdhocDone = mySteps.length === 0 && myAdhocActive.length === 0 && myAdhocDone.length > 0;
+        const cardBorder = allDone || onlyAdhocDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
+        const cardBg = allDone || onlyAdhocDone ? '#f0fdf4' : hasAdhocActive && mySteps.length === 0 ? '#f0f9ff' : 'var(--surface)';
+        const statusTag = allDone || onlyAdhocDone
           ? `<span style="background:#22c55e;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">เสร็จ</span>`
           : inProg.length > 0
           ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">กำลังทำ</span>`
-          : hasAdhoc
+          : hasAdhocActive
           ? `<span style="background:#0d9488;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">ซัพพอร์ต</span>`
           : '';
         const totalJobs = mySteps.length + myAdhocs.length;
@@ -1478,10 +1482,10 @@ async function renderWSMonitor(mc, selDate) {
               ${statusTag}
             </div>
             <div style="width:100%;height:5px;background:#e2e8f0;border-radius:3px;margin-bottom:6px;overflow:hidden">
-              <div style="width:${mySteps.length ? Math.round(done.length/mySteps.length*100) : 0}%;height:100%;background:${allDone?'#22c55e':'#3b82f6'};border-radius:3px"></div>
+              <div style="width:${mySteps.length ? Math.round(done.length/mySteps.length*100) : onlyAdhocDone ? 100 : 0}%;height:100%;background:#22c55e;border-radius:3px"></div>
             </div>
             <div style="font-size:12px;color:var(--text-secondary)">
-              ${totalJobs === 0 ? 'ว่าง' : `${mySteps.length ? fmtMins(totalPlanMins)+' · ' : ''}${totalJobs} งาน${hasAdhoc ? ` (${myAdhocs.length} ซัพพอร์ต)` : ''}`}
+              ${totalJobs === 0 ? 'ว่าง' : `${mySteps.length ? fmtMins(totalPlanMins)+' · ' : ''}${totalJobs} งาน${myAdhocs.length > 0 ? ` (${myAdhocs.length} ซัพพอร์ต)` : ''}`}
             </div>
           </div>`;
       }).join('')}
