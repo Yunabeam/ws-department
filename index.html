@@ -1454,17 +1454,22 @@ async function renderWSMonitor(mc, selDate) {
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">
       ${workers.map(w => {
         const mySteps = allSteps.filter(s => s.assigned_name === w);
+        const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
         const done = mySteps.filter(s => ['confirmed','done_by_worker'].includes(s.status));
         const inProg = mySteps.filter(s => s.status === 'in_progress');
         const totalPlanMins = mySteps.reduce((sum,s) => sum + (plannedMins(s)||0), 0);
         const allDone = mySteps.length > 0 && done.length === mySteps.length;
-        const cardBorder = allDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : '1.5px solid var(--border)';
-        const cardBg = allDone ? '#f0fdf4' : 'var(--surface)';
+        const hasAdhoc = myAdhocs.length > 0;
+        const cardBorder = allDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : hasAdhoc ? '2px solid #0d9488' : '1.5px solid var(--border)';
+        const cardBg = allDone ? '#f0fdf4' : hasAdhoc && mySteps.length === 0 ? '#f0f9ff' : 'var(--surface)';
         const statusTag = allDone
           ? `<span style="background:#22c55e;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">เสร็จ</span>`
           : inProg.length > 0
           ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">กำลังทำ</span>`
+          : hasAdhoc
+          ? `<span style="background:#0d9488;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">ซัพพอร์ต</span>`
           : '';
+        const totalJobs = mySteps.length + myAdhocs.length;
 
         return `
           <div onclick="monitorToggle('${w}')" style="cursor:pointer;background:${cardBg};border:${cardBorder};border-radius:12px;padding:12px 16px;min-width:130px;flex:0 0 auto">
@@ -1476,7 +1481,7 @@ async function renderWSMonitor(mc, selDate) {
               <div style="width:${mySteps.length ? Math.round(done.length/mySteps.length*100) : 0}%;height:100%;background:${allDone?'#22c55e':'#3b82f6'};border-radius:3px"></div>
             </div>
             <div style="font-size:12px;color:var(--text-secondary)">
-              ${mySteps.length === 0 ? 'ว่าง' : `${fmtMins(totalPlanMins)} · ${mySteps.length} งาน`}
+              ${totalJobs === 0 ? 'ว่าง' : `${mySteps.length ? fmtMins(totalPlanMins)+' · ' : ''}${totalJobs} งาน${hasAdhoc ? ` (${myAdhocs.length} ซัพพอร์ต)` : ''}`}
             </div>
           </div>`;
       }).join('')}
