@@ -1403,7 +1403,10 @@ async function renderWSMonitor(mc, selDate) {
   ]);
 
   const allSteps = steps || [];
-  const allAdhocs = adhocMonitor || [];
+  const allAdhocs = (adhocMonitor || []).filter(t =>
+    ['assigned','in_progress'].includes(t.status) ||
+    (t.created_at && t.created_at.substring(0,10) === viewDate)
+  );
   window._monitorSteps = allSteps;
 
   function plannedMins(s) {
