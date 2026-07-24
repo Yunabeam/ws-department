@@ -1692,6 +1692,10 @@ async function renderWorkerLog(mc) {
     mc.innerHTML = `<div class="card"><p style="color:var(--muted)">ไม่พบการตั้งค่าบันทึกงานสำหรับบัญชีนี้</p></div>`;
     return;
   }
+  await renderWorkerLogImpl(mc, workerName, logType);
+}
+
+async function renderWorkerLogImpl(mc, workerName, logType) {
   const today = todayStr();
   const { data: logs } = await sb.from('worker_self_logs')
     .select('*').eq('worker_name', workerName).eq('log_date', today).order('created_at');
