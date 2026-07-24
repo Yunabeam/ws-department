@@ -1657,6 +1657,14 @@ const SELF_LOG_WORKERS = {
   'นายเรืองศิลป์  นามเหลา': 'cutting_job',
   'นายศรันย์  สิงแก้ว': 'blade_sharpening',
 };
+function getSelfLogType(name) {
+  if (!name) return null;
+  const n = name.replace(/\s+/g, ' ').trim();
+  for (const [k, v] of Object.entries(SELF_LOG_WORKERS)) {
+    if (k.replace(/\s+/g, ' ').trim() === n) return v;
+  }
+  return null;
+}
 
 async function renderWorkerLog(mc) {
   const workerName = currentProfile?.display_name || currentProfile?.full_name || '';
