@@ -1867,15 +1867,15 @@ async function saveWorkerLog(workerName, logType) {
   });
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('บันทึกเรียบร้อย', 'success');
-  await renderWorkerLog(document.getElementById('main-content'));
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, logType);
 }
 
-async function deleteWorkerLog(id) {
+async function deleteWorkerLog(id, workerName, logType) {
   if (!confirm('ลบรายการนี้?')) return;
   const { error } = await sb.from('worker_self_logs').delete().eq('id', id);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('ลบเรียบร้อย', 'success');
-  await renderWorkerLog(document.getElementById('main-content'));
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, logType);
 }
 
 // ============================================================
