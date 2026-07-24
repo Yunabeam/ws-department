@@ -1773,6 +1773,9 @@ async function savePlanDatesToDB(stepId, start, end) {
   await sb.from('process_steps').update({ planned_start: start||null, planned_end: end||null }).eq('id', stepId);
 }
 function getStepHours(s) {
+  if (s.started_at && s.actual_completed_at) {
+    return (new Date(s.actual_completed_at) - new Date(s.started_at)) / 3600000;
+  }
   if (!s.time_per_piece || !s.qty) return 0;
   return s.time_per_piece * s.qty / 60;
 }
