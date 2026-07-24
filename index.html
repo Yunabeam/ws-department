@@ -1403,10 +1403,12 @@ async function renderWSMonitor(mc, selDate) {
   ]);
 
   const allSteps = steps || [];
-  const allAdhocs = (adhocMonitor || []).filter(t =>
-    ['assigned','in_progress'].includes(t.status) ||
-    (t.created_at && t.created_at.substring(0,10) === viewDate)
-  );
+  const allAdhocs = (adhocMonitor || []).filter(t => {
+    const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
+    if (!createdDate || createdDate > viewDate) return false;
+    if (['assigned','in_progress'].includes(t.status)) return true;
+    return createdDate === viewDate;
+  });
   window._monitorSteps = allSteps;
 
   function plannedMins(s) {
