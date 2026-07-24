@@ -1783,7 +1783,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
           <td style="padding:8px 6px;text-align:center">${esc(d.after_diameter||'—')}</td>
           <td style="padding:8px 6px;text-align:center">${esc(d.after_thickness||'—')}</td>
           <td style="padding:8px 6px;text-align:center;font-weight:600;color:${d.result==='pass'?'#22c55e':'#ef4444'}">${d.result==='pass'?'ผ่าน':'ไม่ผ่าน'}</td>
-          <td style="padding:8px 6px"><button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}')" style="color:#ef4444">ลบ</button></td>
+          <td style="padding:8px 6px"><button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button></td>
         </tr>`; }).join('')}
       </tbody>
     </table>` : `
@@ -1814,7 +1814,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
           <td style="padding:8px 6px">${d.time_start&&d.time_end?d.time_start+' - '+d.time_end:'—'}</td>
           <td style="padding:8px 6px;text-align:center">${d.ot?'✓':'—'}</td>
           <td style="padding:8px 6px;color:var(--muted)">${esc(d.note||'—')}</td>
-          <td style="padding:8px 6px"><button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}')" style="color:#ef4444">ลบ</button></td>
+          <td style="padding:8px 6px"><button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button></td>
         </tr>`; }).join('')}
       </tbody>
     </table>`;
