@@ -1519,7 +1519,7 @@ async function renderWSMonitor(mc, selDate) {
     <div id="monitor-detail"></div>
 
     ${Object.entries(SELF_LOG_WORKERS).map(([wName, lType]) => {
-      const wLogs = (selfLogs||[]).filter(l => l.worker_name === wName);
+      const wLogs = (selfLogs||[]).filter(l => l.worker_name && l.worker_name.replace(/\s+/g,' ').trim() === wName.replace(/\s+/g,' ').trim());
       const shortName = wName.replace('นาย','').trim().split(' ')[0];
       const isBlade = lType === 'blade_sharpening';
       if (wLogs.length === 0) return `
