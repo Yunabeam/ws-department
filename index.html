@@ -1412,9 +1412,10 @@ async function renderWSMonitor(mc, selDate) {
     const staleSteps = allSteps.filter(s => ['assigned','in_progress'].includes(s.status) && s.planned_start && s.planned_start < today);
     for (const s of staleSteps) {
       const orig = s.original_planned_start || s.planned_start;
-      await sb.from('process_steps').update({ planned_start: today, original_planned_start: orig }).eq('id', s.id);
+      await sb.from('process_steps').update({ planned_start: today, planned_end: today, original_planned_start: orig }).eq('id', s.id);
       s.original_planned_start = orig;
       s.planned_start = today;
+      s.planned_end = today;
     }
   }
 
