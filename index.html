@@ -1670,7 +1670,22 @@ async function renderWorkerLog(mc) {
   const workerName = currentProfile?.full_name || '';
   const logType = getSelfLogType(workerName);
   if (!logType) {
-    mc.innerHTML = `<div class="card"><p style="color:var(--muted)">ไม่พบการตั้งค่าบันทึกงานสำหรับบัญชีนี้<br><span style="font-size:11px;color:#94a3b8">full_name: "${esc(workerName)}"</span></p></div>`;
+    const isSA = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+    if (isSA) {
+      mc.innerHTML = `
+        <div class="section-header"><div class="section-title">📝 บันทึกงาน (ดูตัวอย่าง)</div></div>
+        <div class="card">
+          <p style="color:var(--muted);margin-bottom:12px">เลือกช่างเพื่อดูฟอร์ม</p>
+          <div style="display:flex;gap:10px">
+            ${Object.entries(SELF_LOG_WORKERS).map(([n,t])=>`
+              <button class="btn btn-primary" onclick="renderWorkerLogAs('${esc(n)}','${t}',document.getElementById('main-content'))">
+                ${esc(n.replace('นาย','').trim().split(' ')[0])}
+              </button>`).join('')}
+          </div>
+        </div>`;
+      return;
+    }
+    mc.innerHTML = `<div class="card"><p style="color:var(--muted)">ไม่พบการตั้งค่าบันทึกงานสำหรับบัญชีนี้</p></div>`;
     return;
   }
   const today = todayStr();
