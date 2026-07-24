@@ -1517,6 +1517,75 @@ async function renderWSMonitor(mc, selDate) {
     </div>
 
     <div id="monitor-detail"></div>
+
+    ${Object.entries(SELF_LOG_WORKERS).map(([wName, lType]) => {
+      const wLogs = (selfLogs||[]).filter(l => l.worker_name === wName);
+      const shortName = wName.replace('นาย','').trim().split(' ')[0];
+      const isBlade = lType === 'blade_sharpening';
+      if (wLogs.length === 0) return `
+        <div class="card" style="margin-top:12px">
+          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${isBlade?'ช่างลับใบเลื่อย':'งานตัด'}) · ${wLogs.length} รายการ</span></div>
+          <p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">ยังไม่มีรายการบันทึก</p>
+        </div>`;
+      return `
+        <div class="card" style="margin-top:12px">
+          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${isBlade?'ช่างลับใบเลื่อย':'งานตัด'}) · ${wLogs.length} รายการ</span></div>
+          <div style="overflow-x:auto;margin-top:10px">
+          ${isBlade ? `
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead><tr style="background:var(--surface-alt)">
+                <th style="padding:7px 6px">#</th><th style="padding:7px 6px">ใบเลื่อย</th>
+                <th style="padding:7px 6px">เครื่องลับ</th><th style="padding:7px 6px">เครื่องผลิต</th>
+                <th style="padding:7px 6px">เวลา(นาที)</th><th style="padding:7px 6px">รอยร้าว</th>
+                <th style="padding:7px 6px">ฟันหัก</th><th style="padding:7px 6px">เช็คศูนย์</th>
+                <th style="padding:7px 6px">สูงฟัน</th><th style="padding:7px 6px">รอยไหม้</th>
+                <th style="padding:7px 6px">ความโต</th><th style="padding:7px 6px">ความหนา</th>
+                <th style="padding:7px 6px">ผล</th>
+              </tr></thead>
+              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; return `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:7px 6px;color:var(--muted)">${i+1}</td>
+                  <td style="padding:7px 6px;font-weight:600">${esc(d.blade_no||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.machine_sharpen||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.machine_prod||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.time_used||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${d.before_crack=='1'?'✗':'○'}</td>
+                  <td style="padding:7px 6px;text-align:center">${d.before_broken=='1'?'✗':'○'}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.before_center||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.after_tooth_height||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${d.after_burn=='1'?'✗':'○'}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.after_diameter||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.after_thickness||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center;font-weight:600;color:${d.result==='pass'?'#22c55e':'#ef4444'}">${d.result==='pass'?'ผ่าน':'ไม่ผ่าน'}</td>
+                </tr>`; }).join('')}
+              </tbody>
+            </table>` : `
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead><tr style="background:var(--surface-alt)">
+                <th style="padding:7px 6px">#</th><th style="padding:7px 6px">รหัสลูกค้า</th>
+                <th style="padding:7px 6px">ชื่องาน</th><th style="padding:7px 6px">Spare Part</th>
+                <th style="padding:7px 6px">ลำดับ</th><th style="padding:7px 6px">Plan</th>
+                <th style="padding:7px 6px">Actual</th><th style="padding:7px 6px">เวลา</th>
+                <th style="padding:7px 6px">OT</th><th style="padding:7px 6px">หมายเหตุ</th>
+              </tr></thead>
+              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; return `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:7px 6px;color:var(--muted)">${i+1}</td>
+                  <td style="padding:7px 6px">${esc(d.customer_code||'—')}</td>
+                  <td style="padding:7px 6px;font-weight:600">${esc(d.job_name||'—')}</td>
+                  <td style="padding:7px 6px">${esc(d.spare_part||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.part_seq||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.qty_plan||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center;font-weight:600">${esc(d.qty_actual||'—')}</td>
+                  <td style="padding:7px 6px">${d.time_start&&d.time_end?d.time_start+' - '+d.time_end:'—'}</td>
+                  <td style="padding:7px 6px;text-align:center">${d.ot?'✓':'—'}</td>
+                  <td style="padding:7px 6px;color:var(--muted)">${esc(d.note||'—')}</td>
+                </tr>`; }).join('')}
+              </tbody>
+            </table>`}
+          </div>
+        </div>`;
+    }).join('')}
   `;
 
   function renderDetail(w) {
