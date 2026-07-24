@@ -1398,7 +1398,7 @@ async function renderWSMonitor(mc, selDate) {
   const viewDate = selDate || today;
 
   const [{ data: steps }, { data: adhocMonitor }] = await Promise.all([
-    sb.from('process_steps').select('*,projects(project_no,name,confirmed_deadline)').or(`planned_start.eq.${viewDate},and(status.in.(assigned,in_progress),planned_start.lt.${viewDate})`),
+    sb.from('process_steps').select('*,projects(project_no,name,confirmed_deadline)').or(`planned_start.eq.${viewDate},original_planned_start.eq.${viewDate},and(status.in.(assigned,in_progress),planned_start.lt.${viewDate})`),
     sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']),
   ]);
 
