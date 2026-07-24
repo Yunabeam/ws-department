@@ -1405,7 +1405,7 @@ async function renderWSMonitor(mc, selDate) {
   const stepIds = new Set((steps||[]).map(s => s.id));
   const mergedSteps = [...(steps||[]), ...(stepsOrig||[]).filter(s => !stepIds.has(s.id))];
 
-  const allSteps = steps || [];
+  const allSteps = mergedSteps;
 
   // auto-move: งานค้าง (assigned/in_progress) ที่ planned_start < วันนี้ → เลื่อน planned_start มาวันนี้ และเก็บ original_planned_start ไว้
   if (viewDate === today) {
