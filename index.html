@@ -1667,8 +1667,8 @@ function getSelfLogType(name) {
 }
 
 async function renderWorkerLog(mc) {
-  const workerName = currentProfile?.display_name || currentProfile?.full_name || '';
-  const logType = SELF_LOG_WORKERS[workerName];
+  const workerName = currentProfile?.full_name || '';
+  const logType = getSelfLogType(workerName);
   if (!logType) {
     mc.innerHTML = `<div class="card"><p style="color:var(--muted)">ไม่พบการตั้งค่าบันทึกงานสำหรับบัญชีนี้</p></div>`;
     return;
