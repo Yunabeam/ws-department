@@ -1403,6 +1403,18 @@ async function renderWSMonitor(mc, selDate) {
   ]);
 
   const allSteps = steps || [];
+
+  // auto-move: งานค้าง (assigned/in_progress) ที่ planned_start < วันนี้ → เลื่อน planned_start มาวันนี้ และเก็บ original_planned_start ไว้
+  if (viewDate === today) {
+    const staleSteps = allSteps.filter(s => ['assigned','in_progress'].includes(s.status) && s.planned_start && s.planned_start < today);
+    for (const s of staleSteps) {
+      const orig = s.original_planned_start || s.planned_start;
+      await sb.from('process_steps').update({ planned_start: today, original_planned_start: orig }).eq('id', s.id);
+      s.original_planned_start = orig;
+      s.planned_start = today;
+    }
+  }
+
   const allAdhocs = (adhocMonitor || []).filter(t => {
     const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
     if (!createdDate || createdDate > viewDate) return false;
