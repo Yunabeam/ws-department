@@ -1400,10 +1400,11 @@ async function renderWSMonitor(mc, selDate) {
   const today = todayStr();
   const viewDate = selDate || today;
 
-  const [{ data: steps }, { data: stepsOrig }, { data: adhocMonitor }] = await Promise.all([
+  const [{ data: steps }, { data: stepsOrig }, { data: adhocMonitor }, { data: selfLogs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name,confirmed_deadline)').or(`planned_start.eq.${viewDate},and(status.in.(assigned,in_progress),planned_start.lt.${viewDate})`),
     sb.from('process_steps').select('*,projects(project_no,name,confirmed_deadline)').eq('original_planned_start', viewDate),
     sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']),
+    sb.from('worker_self_logs').select('*').eq('log_date', viewDate).order('created_at'),
   ]);
   const stepIds = new Set((steps||[]).map(s => s.id));
   const mergedSteps = [...(steps||[]), ...(stepsOrig||[]).filter(s => !stepIds.has(s.id))];
