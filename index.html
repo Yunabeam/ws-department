@@ -1666,6 +1666,10 @@ function getSelfLogType(name) {
   return null;
 }
 
+async function renderWorkerLogAs(workerName, logType, mc) {
+  await renderWorkerLogImpl(mc, workerName, logType);
+}
+
 async function renderWorkerLog(mc) {
   const workerName = currentProfile?.full_name || '';
   const logType = getSelfLogType(workerName);
