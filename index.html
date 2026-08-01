@@ -3025,11 +3025,20 @@ async function renderWSConfirmSteps(mc) {
   `;
 }
 
-async function revertStepToDoing(stepId) {
-  if (!confirm('ย้อนกลับสถานะเป็น "กำลังทำ" ใช่ไหม?')) return;
-  const { error } = await sb.from('process_steps').update({ status: 'in_progress', worker_confirmed_at: null }).eq('id', stepId);
+function revertStepToDoing(stepId) {
+  openModal('↩ ย้อนกลับสถานะงาน', `
+    <p style="margin-bottom:14px;color:var(--text-secondary)">เลือกสถานะที่ถูกต้อง</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="doRevertStep('${stepId}','assigned')">📋 ยังไม่เริ่ม (ยังไม่ถึงขั้นตอนนี้)</button>
+      <button class="btn btn-ghost" onclick="doRevertStep('${stepId}','in_progress')">⏳ กำลังทำอยู่</button>
+    </div>
+  `, [{ label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal }]);
+}
+async function doRevertStep(stepId, status) {
+  const { error } = await sb.from('process_steps').update({ status, worker_confirmed_at: null, actual_completed_at: null }).eq('id', stepId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('ย้อนกลับเรียบร้อย', 'success');
+  closeModal();
   renderWSConfirmSteps(document.getElementById('main-content'));
 }
 
