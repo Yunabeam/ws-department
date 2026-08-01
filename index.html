@@ -3024,6 +3024,14 @@ async function renderWSConfirmSteps(mc) {
   `;
 }
 
+async function revertStepToDoing(stepId) {
+  if (!confirm('ย้อนกลับสถานะเป็น "กำลังทำ" ใช่ไหม?')) return;
+  const { error } = await sb.from('process_steps').update({ status: 'in_progress', worker_confirmed_at: null }).eq('id', stepId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ย้อนกลับเรียบร้อย', 'success');
+  renderWSConfirmSteps(document.getElementById('main-content'));
+}
+
 async function deleteAdhocTask(id) {
   if (!confirm('ลบงานซัพพอร์ตนี้?')) return;
   const { error } = await sb.from('adhoc_tasks').delete().eq('id', id);
