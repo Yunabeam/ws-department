@@ -2786,11 +2786,13 @@ async function openPlanModal(projId) {
           ชื่อขั้นตอน *
           <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('stepname')">⚙️ จัดการ</button>
         </label>
-        <div style="position:relative">
-          <input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส" autocomplete="off"
-            oninput="stepNameSuggest(this)"
-            onblur="setTimeout(()=>{const el=document.getElementById('ps-name-suggest');if(el)el.remove()},200)">
-          <div id="ps-name-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:999;max-height:200px;overflow-y:auto"></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <select id="ps-name-select" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"
+            onchange="(function(){const v=document.getElementById('ps-name-select').value;if(v){const inp=document.getElementById('ps-name');inp.value=v;inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}})()">
+            <option value="">— เลือกขั้นตอน —</option>
+            ${(_stepNameTemplates||[]).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+          </select>
+          <input id="ps-name" placeholder="พิมตัวเลขหรือรายละเอียดเพิ่มเติม เช่น OD55x165" autocomplete="off">
         </div>
       </div>
       <div class="form-group">
