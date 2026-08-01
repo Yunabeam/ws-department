@@ -3004,7 +3004,7 @@ async function renderWSConfirmSteps(mc) {
             <td>${timeAgo(s.worker_confirmed_at)}</td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-sm btn-green" onclick="openConfirmStepModal('${s.id}','${s.project_id}')">✅ ยืนยัน</button>
-              <button class="btn btn-sm btn-ghost" onclick="revertStepToDoing('${s.id}')" title="ย้อนกลับเป็นกำลังทำ">↩ ย้อน</button>
+              ${window._isSuperAdmin ? `<button class="btn btn-sm btn-ghost" onclick="revertStepToDoing('${s.id}')" title="ย้อนกลับเป็นกำลังทำ">↩ ย้อน</button>` : ''}
             </td>
           </tr>`).join('')}
           ${(adhocs||[]).map(t => `
