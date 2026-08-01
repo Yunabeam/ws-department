@@ -2715,7 +2715,18 @@ async function openPlanModal(projId) {
       </div><hr>` : ''}
     <b>เพิ่มขั้นตอนที่ ${nextSeq}:</b>
     <div class="form-row" style="margin-top:10px">
-      <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส"></div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          ชื่อขั้นตอน *
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="openManageListModal('stepname')">⚙️ จัดการ</button>
+        </label>
+        <div style="position:relative">
+          <input id="ps-name" placeholder="เช่น กลึง, เจาะ, ไส" autocomplete="off"
+            oninput="stepNameSuggest(this)"
+            onblur="setTimeout(()=>{const el=document.getElementById('ps-name-suggest');if(el)el.remove()},200)">
+          <div id="ps-name-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:999;max-height:200px;overflow-y:auto"></div>
+        </div>
+      </div>
       <div class="form-group">
         <label style="display:flex;align-items:center;justify-content:space-between">
           เครื่องจักร
