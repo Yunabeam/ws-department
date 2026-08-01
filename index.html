@@ -2587,9 +2587,15 @@ function toggleWSCard(id) {
   if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
 }
 
+async function wsSendToSupplier(stepId, projId) {
+  await sb.from('process_steps').update({ assigned_name: 'จัดซื้อ', status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
+  showToast('บันทึกแล้ว — ส่งซัพพลายเออร์แล้ว', 'success');
+  setTimeout(() => navigateTo('ws-status-plan'), 100);
+}
+
 async function wsOutsourceReturn(stepId, projId) {
-  await sb.from('process_steps').update({ assigned_name: 'จัดซื้อ', status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
-  showToast('บันทึกแล้ว — งาน Outsource กลับมาแล้ว', 'success');
+  await sb.from('process_steps').update({ status: 'done_by_worker', worker_confirmed_at: new Date().toISOString() }).eq('id', stepId);
+  showToast('บันทึกแล้ว — งานกลับมาแล้ว รอหัวหน้ายืนยัน', 'success');
   setTimeout(() => navigateTo('ws-status-plan'), 100);
 }
 
