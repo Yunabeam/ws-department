@@ -2982,6 +2982,7 @@ async function renderWSProcessPlans(mc) {
 // WS MANAGER - CONFIRM STEPS
 // ============================================================
 async function renderWSConfirmSteps(mc) {
+  const isSA = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   const [{ data: steps }, { data: adhocs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name,id)').eq('status','done_by_worker').order('worker_confirmed_at'),
     sb.from('adhoc_tasks').select('*').eq('status','done').order('completed_at'),
