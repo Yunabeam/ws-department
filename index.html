@@ -340,6 +340,61 @@ function saveListChanges(type, count) {
   showToast('บันทึกแล้ว', 'success'); closeModal();
 }
 
+let _stepNameTemplates = null;
+async function loadStepNameTemplates() {
+  const { data } = await sb.from('step_name_templates').select('*').order('name');
+  _stepNameTemplates = (data || []).map(r => r.name);
+  return _stepNameTemplates;
+}
+async function openStepNameModal() {
+  const list = await loadStepNameTemplates();
+  openModal('⚙️ จัดการชื่อขั้นตอน', `
+    <div id="stepname-list" style="max-height:300px;overflow-y:auto;margin-bottom:12px">
+      ${list.length === 0 ? '<p style="color:var(--muted);font-size:13px">ยังไม่มีรายการ</p>' : ''}
+      ${list.map(n => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="flex:1;padding:8px 10px;background:var(--surface-alt);border-radius:6px;font-size:14px">${esc(n)}</span>
+          <button class="btn btn-sm btn-red" onclick="deleteStepNameTemplate('${esc(n)}')">ลบ</button>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="snt-new" placeholder="ชื่อขั้นตอนใหม่..." style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:14px"
+        onkeydown="if(event.key==='Enter')addStepNameTemplate()">
+      <button class="btn btn-sm btn-primary" onclick="addStepNameTemplate()">➕ เพิ่ม</button>
+    </div>
+  `, [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
+}
+async function addStepNameTemplate() {
+  const val = document.getElementById('snt-new')?.value.trim();
+  if (!val) return;
+  const { error } = await sb.from('step_name_templates').insert({ name: val });
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  _stepNameTemplates = null;
+  showToast('เพิ่มแล้ว', 'success');
+  closeModal(); await openStepNameModal();
+}
+async function deleteStepNameTemplate(name) {
+  if (!confirm(`ลบ "${name}"?`)) return;
+  await sb.from('step_name_templates').delete().eq('name', name);
+  _stepNameTemplates = null;
+  closeModal(); await openStepNameModal();
+}
+async function stepNameSuggest(input) {
+  const q = input.value.trim();
+  const box = document.getElementById('ps-name-suggest');
+  if (!box) return;
+  if (!q) { box.style.display = 'none'; return; }
+  if (!_stepNameTemplates) await loadStepNameTemplates();
+  const matches = _stepNameTemplates.filter(n => n.includes(q));
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(n => `
+    <div style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)"
+      onmousedown="document.getElementById('ps-name').value='${esc(n)}';document.getElementById('ps-name-suggest').style.display='none'">
+      ${esc(n)}
+    </div>`).join('');
+}
+
 async function getWorkerAllocatedHours(workerName) {
   const { data: steps } = await sb.from('process_steps')
     .select('time_per_piece,qty').eq('assigned_name', workerName)
