@@ -298,7 +298,8 @@ function getMachineList() {
 function saveWorkerList(list) { localStorage.setItem('ws_workers', JSON.stringify(list)); }
 function saveMachineList(list) { localStorage.setItem('ws_machines', JSON.stringify(list)); }
 
-function openManageListModal(type) {
+async function openManageListModal(type) {
+  if (type === 'stepname') { await openStepNameModal(); return; }
   const isMachine = type === 'machine';
   const list = isMachine ? getMachineList() : getWorkerList();
   const title = isMachine ? '⚙️ จัดการรายชื่อเครื่องจักร' : '👷 จัดการรายชื่อช่าง';
