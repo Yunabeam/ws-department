@@ -2757,6 +2757,7 @@ async function renderWSPlanList(mc) {
 
 async function openPlanModal(projId) {
   window._modalNoBackdropClose = true;
+  if (!_stepNameTemplates) await loadStepNameTemplates();
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: existing } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   const nextSeq = (existing||[]).length + 1;
