@@ -1351,7 +1351,8 @@ async function saveEditUser(userId) {
   const isActive = document.getElementById('um-active').checked;
   const errEl = document.getElementById('um-error');
   if (!name||!email) { errEl.textContent='กรุณากรอกชื่อและอีเมล'; errEl.style.display='block'; return; }
-  const updates = { full_name: name, email, role, is_super_admin: isSA, is_active: isActive };
+  const secondaryRoles = [...document.querySelectorAll('.um-secondary:checked')].map(el => el.value).filter(v => v !== role);
+  const updates = { full_name: name, email, role, secondary_roles: secondaryRoles, is_super_admin: isSA, is_active: isActive };
   if (pass) updates.password = pass;
   const { error } = await sb.from('app_users').update(updates).eq('id', userId);
   if (error) { errEl.textContent=error.message; errEl.style.display='block'; return; }
