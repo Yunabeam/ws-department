@@ -1011,7 +1011,7 @@ function filterProjects(q) {
 
 function renderProjectTable(rows) {
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
-  const isSuperAdmin = window._isSuperAdmin || !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+  const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   return `<div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr></thead>
     <tbody>${rows.map(r => `
