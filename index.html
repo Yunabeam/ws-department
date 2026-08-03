@@ -572,12 +572,28 @@ async function showApp() {
   if (!currentProfile) { showToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin','error'); return; }
   document.getElementById('user-name-display').textContent = currentProfile.full_name;
   document.getElementById('role-badge-display').textContent = ROLE_LABELS[currentProfile.role] || currentProfile.role;
-  // Show role switcher for super admin
+  // Show role switcher for super admin or users with secondary roles
   const isSuperAdmin = !!(currentUser.is_super_admin || currentProfile?.is_super_admin);
+  const secondaryRoles = currentProfile?.secondary_roles || [];
   const switcher = document.getElementById('role-switcher');
   if (isSuperAdmin) {
     switcher.style.display = 'block';
     switcher.querySelector('select').value = currentProfile.role;
+  } else if (secondaryRoles.length > 0) {
+    const allRoles = [currentProfile.role, ...secondaryRoles];
+    const ALL_ROLE_OPTIONS = [
+      { value:'eng_manager', label:'หัวหน้าวิศฯ' },
+      { value:'ws_manager', label:'หัวหน้า WS' },
+      { value:'ws_worker', label:'ช่าง WS' },
+      { value:'user', label:'ผู้ขอ' },
+      { value:'qc', label:'QC' },
+      { value:'executive', label:'ผู้บริหาร' },
+    ];
+    switcher.style.display = 'block';
+    switcher.querySelector('select').innerHTML = ALL_ROLE_OPTIONS
+      .filter(r => allRoles.includes(r.value))
+      .map(r => `<option value="${r.value}" ${r.value===currentProfile.role?'selected':''}>${r.label}</option>`)
+      .join('');
   } else {
     switcher.style.display = 'none';
   }
