@@ -2253,7 +2253,13 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
       if (!s.planned_start) return false;
       return dateInRange(today, s.planned_start, s.planned_end);
     });
-    const adhocs = adhocTasks.filter(t => t.assigned_name === w && ['assigned','in_progress'].includes(t.status));
+    const adhocs = adhocTasks.filter(t => {
+      if (t.assigned_name !== w) return false;
+      const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
+      if (!createdDate || createdDate > today) return false;
+      if (['assigned','in_progress'].includes(t.status)) return true;
+      return createdDate === today;
+    });
     const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
     const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + getStepHours(s), 0);
     const allDone = tasks.length > 0 && tasks.every(s => ['confirmed','done_by_worker'].includes(s.status));
