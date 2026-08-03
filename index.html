@@ -476,6 +476,7 @@ async function loadProfile() {
       email: appUser.email,
       full_name: appUser.full_name,
       role: appUser.role,
+      secondary_roles: appUser.secondary_roles || [],
       is_super_admin: appUser.is_super_admin,
       is_active: appUser.is_active,
     };
