@@ -1313,10 +1313,19 @@ function openEditUserModal(userId) {
         <input id="um-email" class="form-input" type="email" value="${u.email}" style="width:100%"></div>
       <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
         <input id="um-pass" class="form-input" type="text" placeholder="รหัสผ่านใหม่" style="width:100%"></div>
-      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">สิทธิ์การใช้งาน</label>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">สิทธิ์หลัก</label>
         <select id="um-role" class="form-input" style="width:100%">
           ${ROLE_OPTIONS.map(r=>`<option value="${r.value}" ${r.value===u.role?'selected':''}>${r.label}</option>`).join('')}
         </select></div>
+      <div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">สิทธิ์เพิ่มเติม (เลือกได้หลายอย่าง)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${ROLE_OPTIONS.map(r=>`
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" class="um-secondary" value="${r.value}" ${(u.secondary_roles||[]).includes(r.value)?'checked':''} style="width:15px;height:15px">
+              ${r.label}
+            </label>`).join('')}
+        </div>
+      </div>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="checkbox" id="um-super" ${u.is_super_admin?'checked':''} style="width:16px;height:16px">
         <label for="um-super" style="font-size:13px;font-weight:600">SuperAdmin</label>
