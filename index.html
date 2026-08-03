@@ -2260,26 +2260,31 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
   });
 
   const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone, adhocs}) => {
-    const hasWork = tasks.length > 0 || adhocs.length > 0;
-    const isFull = hrs >= 8;
-    const cardBg = allDone && adhocs.length === 0 ? 'background:#f0fdf4;border:1.5px solid var(--green)' : isFull ? 'background:#fff7ed;border:1.5px solid var(--amber)' : adhocs.length > 0 ? 'background:#f0f9ff;border:1.5px solid var(--teal)' : hasWork ? 'border:1.5px solid var(--border)' : 'background:#f8fafc;border:1.5px solid #e2e8f0';
-    const barColor = allDone ? 'var(--green)' : doneHrs > 0 ? 'var(--teal)' : isFull ? 'var(--amber)' : 'var(--primary)';
-    const barWidth = hasWork ? Math.min(hrs / 8 * 100, 100) : 0;
-    return `<div style="padding:10px 12px;border-radius:10px;min-width:120px;flex:1;cursor:pointer;${cardBg}" onclick="openWorkerDayDetail('${esc(w)}','${today}')">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <span style="font-size:13px;font-weight:700">${esc(w)}</span>
-        ${allDone && adhocs.length === 0 ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:8px">เสร็จ</span>`
-          : isFull ? `<span style="font-size:10px;background:var(--amber);color:#fff;padding:1px 6px;border-radius:8px">เต็ม</span>`
-          : adhocs.length > 0 ? `<span style="font-size:10px;background:var(--teal);color:#fff;padding:1px 6px;border-radius:8px">ซัพพอร์ต</span>`
-          : ''}
+    const done = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status));
+    const inProg = tasks.filter(s => s.status === 'in_progress');
+    const hasAdhocActive = adhocs.length > 0;
+    const onlyAdhocDone = tasks.length === 0 && adhocs.length === 0;
+    const totalJobs = tasks.length + adhocs.length;
+    const cardBorder = allDone || onlyAdhocDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
+    const cardBg = allDone ? '#f0fdf4' : hasAdhocActive && tasks.length === 0 ? '#f0f9ff' : 'var(--surface)';
+    const statusTag = allDone
+      ? `<span style="background:#22c55e;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">เสร็จ</span>`
+      : inProg.length > 0
+      ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">กำลังทำ</span>`
+      : hasAdhocActive
+      ? `<span style="background:#0d9488;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">ซัพพอร์ต</span>`
+      : '';
+    const barPct = tasks.length ? Math.round(done.length / tasks.length * 100) : 0;
+    return `<div style="cursor:pointer;background:${cardBg};border:${cardBorder};border-radius:12px;padding:12px 16px;min-width:130px;flex:0 0 auto" onclick="openWorkerDayDetail('${esc(w)}','${today}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+        <span style="font-weight:700;font-size:14px">${esc(w)}</span>
+        ${statusTag}
       </div>
-      <div style="height:5px;background:#e2e8f0;border-radius:3px;margin-bottom:5px;overflow:hidden">
-        <div style="height:100%;background:${barColor};width:${barWidth}%;border-radius:3px"></div>
+      <div style="width:100%;height:5px;background:#e2e8f0;border-radius:3px;margin-bottom:6px;overflow:hidden">
+        <div style="width:${barPct}%;height:100%;background:#22c55e;border-radius:3px"></div>
       </div>
-      <div style="font-size:12px;color:${isFull&&!allDone?'var(--amber)':hasWork?'var(--teal)':'var(--muted)'}">
-        ${tasks.length > 0 ? `${hrs.toFixed(1)} ชม. · ${tasks.length} งาน` : ''}
-        ${adhocs.length > 0 ? `${tasks.length > 0 ? ' · ' : ''}${adhocs.length} งานซัพพอร์ต` : ''}
-        ${!hasWork ? 'ว่าง' : ''}
+      <div style="font-size:12px;color:var(--text-secondary)">
+        ${totalJobs === 0 ? 'ว่าง' : `${tasks.length ? hrs.toFixed(1)+' ชม. · ' : ''}${totalJobs} งาน${adhocs.length > 0 ? ` (${adhocs.length} ซัพพอร์ต)` : ''}`}
       </div>
     </div>`;
   }).join('');
