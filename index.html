@@ -3555,6 +3555,7 @@ async function renderMyRequests(mc) {
             <td>
               <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${p.id}')">ดู</button>
               ${p.status === 'qc_pass' ? `<button class="btn btn-sm btn-green" onclick="acceptWork('${p.id}')">รับงาน</button>` : ''}
+              ${isSA ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${p.id}','${esc(p.project_no||'')}','${esc(p.name)}')">🗑️ ลบ</button>` : ''}
             </td>
           </tr>`).join('')}
         </tbody>
