@@ -2774,7 +2774,7 @@ async function openPlanModal(projId) {
             <div><b>${esc(s.step_name)}</b></div>
             <div style="display:flex;gap:6px;margin-left:auto">
               <button class="btn btn-sm btn-ghost" onclick="editStepInline('${s.id}','${projId}')">✏️ แก้ไข</button>
-              <button class="btn btn-sm btn-red" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>
+              ${!!(currentUser?.is_super_admin||currentProfile?.is_super_admin) ? `<button class="btn btn-sm btn-red" onclick="deleteStep('${s.id}','${projId}')">ลบ</button>` : ''}
             </div>
           </div>
           <div style="font-size:12px;color:var(--muted)">เครื่อง: ${esc(s.machine||'-')} · ช่าง: ${esc(s.assigned_name||'-')} · Part No: ${esc(s.part_no||'-')} · เวลา/ชิ้น: ${s.time_per_piece||'-'} นาที · จำนวน: ${s.qty}</div>
