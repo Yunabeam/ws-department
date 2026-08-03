@@ -2299,7 +2299,13 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
 async function openWorkerDayDetail(workerName, dateStr) {
   const tasks = (window._wsSummarySteps || []).filter(s =>
     s.assigned_name === workerName && s.planned_start && dateInRange(dateStr, s.planned_start, s.planned_end));
-  const adhocs = (window._wsAdhocTasks || []).filter(t => t.assigned_name === workerName);
+  const adhocs = (window._wsAdhocTasks || []).filter(t => {
+    if (t.assigned_name !== workerName) return false;
+    const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
+    if (!createdDate || createdDate > dateStr) return false;
+    if (['assigned','in_progress'].includes(t.status)) return true;
+    return createdDate === dateStr;
+  });
 
   if (!tasks.length && !adhocs.length) {
     openModal(`🔧 งานของ ${esc(workerName)}`, `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในวันที่ ${fmtDate(dateStr)}</div>`);
