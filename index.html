@@ -2937,24 +2937,31 @@ async function editStepInline(stepId, projId) {
   if (!s) return;
   const workers = getWorkerList();
   const machines = getMachineList();
+  const esIsOutsource = s.machine === 'ส่งออก (จัดซื้อ)';
   openModal(`✏️ แก้ไขขั้นตอนที่ ${s.seq}`, `
     <div class="form-row">
       <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="es-name" value="${esc(s.step_name)}"></div>
       <div class="form-group">
         <label>เครื่องจักร</label>
-        <select id="es-machine" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        <select id="es-machine" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" ${esIsOutsource?'disabled':''}>
           <option value="">— เลือกเครื่องจักร —</option>
-          ${machines.map(m=>`<option value="${m}" ${s.machine===m?'selected':''}>${m}</option>`).join('')}
+          ${machines.map(m=>`<option value="${m}" ${!esIsOutsource&&s.machine===m?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
+        <input type="checkbox" id="es-outsource" ${esIsOutsource?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;}else{wr.disabled=false;}})(this.checked)">
+        ส่งออก (Outsource) — ไม่ระบุเครื่องจักรและช่าง
+      </label>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Part No.</label><input id="es-partno" value="${esc(s.part_no||'')}"></div>
       <div class="form-group">
         <label>ช่างผู้รับผิดชอบ</label>
-        <select id="es-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        <select id="es-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" ${esIsOutsource?'disabled':''}>
           <option value="">— เลือกช่าง —</option>
-          ${workers.map(w=>`<option value="${w}" ${s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
+          ${workers.map(w=>`<option value="${w}" ${!esIsOutsource&&s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -2968,10 +2975,11 @@ async function editStepInline(stepId, projId) {
       const name = document.getElementById('es-name').value.trim();
       const qty = parseInt(document.getElementById('es-qty').value);
       if (!name || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
-      const workerName = document.getElementById('es-worker').value;
+      const isOut = document.getElementById('es-outsource').checked;
+      const workerName = isOut ? null : document.getElementById('es-worker').value;
       await sb.from('process_steps').update({
         step_name: name,
-        machine: document.getElementById('es-machine').value,
+        machine: isOut ? 'ส่งออก (จัดซื้อ)' : document.getElementById('es-machine').value,
         part_no: document.getElementById('es-partno').value.trim(),
         assigned_name: workerName || null,
         status: workerName ? 'assigned' : (s.status === 'pending' ? 'pending' : s.status),
