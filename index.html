@@ -2406,7 +2406,8 @@ function _wsPlanCellHtml(s, p) {
   const isDone = ['confirmed','done_by_worker'].includes(s.status);
   const isLocked = ['in_progress','pending_qc'].includes(p.status) && s.status === 'pending' &&
     (window._wsStepMap?.[p.id]||[]).find(prev => prev.seq === s.seq - 1 && !['confirmed','done_by_worker'].includes(prev.status));
-  const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
+  const isOutsource = s.machine === 'ส่งออก (จัดซื้อ)';
+  const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : isOutsource ? `<span style="font-size:12px;color:#0369a1;font-weight:600">จัดซื้อ</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
   const planStart = s.planned_start || '';
   const planEnd = s.planned_end || '';
   const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
@@ -2414,7 +2415,7 @@ function _wsPlanCellHtml(s, p) {
   if (s.status === 'in_progress') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--teal)">${dateDisplay}</span></div>`;
   if (s.status === 'done_by_worker') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--amber)">รอยืนยัน</span></div>`;
   if (isLocked) return `<span style="font-size:12px;color:#94a3b8">—</span>`;
-  if (s.machine === 'ส่งออก (จัดซื้อ)') return s.status === 'in_progress'
+  if (isOutsource) return s.status === 'in_progress'
     ? `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`
     : `<button class="btn btn-sm btn-primary" onclick="wsSendToSupplier('${s.id}','${p.id}')">📦 ส่งซัพพลายเออร์</button>`;
   if (planStart) return `<div style="display:flex;flex-direction:column;gap:4px">
