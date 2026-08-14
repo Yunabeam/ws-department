@@ -2549,16 +2549,16 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : isOutsource ? `<span style="font-size:12px;color:#0369a1;font-weight:600">จัดซื้อ</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
       const planCell = isDone
         ? `<div>${workerLabel}<br><span style="font-size:11px;color:var(--green)">${dateDisplay}</span></div>`
+        : isOutsource
+        ? (s.status === 'in_progress'
+          ? `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`
+          : `<button class="btn btn-sm btn-primary" onclick="wsSendToSupplier('${s.id}','${p.id}')">📦 ส่งซัพพลายเออร์</button>`)
         : s.status==='in_progress'
         ? `<div>${workerLabel}<br><span style="font-size:11px;color:var(--teal)">${dateDisplay}</span></div>`
         : s.status==='done_by_worker'
         ? `<div>${workerLabel}<br><span style="font-size:11px;color:var(--amber)">รอยืนยัน</span></div>`
         : isLocked
         ? `<span style="font-size:12px;color:#94a3b8">—</span>`
-        : s.machine === 'ส่งออก (จัดซื้อ)'
-        ? (s.status === 'in_progress'
-          ? `<button class="btn btn-sm btn-amber" onclick="wsOutsourceReturn('${s.id}','${p.id}')">📦 งานกลับมาแล้ว</button>`
-          : `<button class="btn btn-sm btn-primary" onclick="wsSendToSupplier('${s.id}','${p.id}')">📦 ส่งซัพพลายเออร์</button>`)
         : planStart
         ? `<div style="display:flex;flex-direction:column;gap:4px">
             ${workerLabel}
