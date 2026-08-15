@@ -3641,7 +3641,10 @@ async function renderQCQueue(mc) {
             <div class="card-title">${esc(p.project_no||'')} - ${esc(p.name)}</div>
             <div style="color:var(--muted);font-size:13px">ผู้ขอ: ${esc(p.requester_name||'-')} · Deadline: ${fmtDate(p.confirmed_deadline)}</div>
           </div>
-          <button class="btn btn-primary" onclick="openQCModal('${p.id}')">🔍 ตรวจ QC</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${!!(currentUser?.is_super_admin||currentProfile?.is_super_admin) ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="revertFromQC('${p.id}','${esc(p.project_no||'')}')">↩️ ย้อนกลับ QC</button>` : ''}
+            <button class="btn btn-primary" onclick="openQCModal('${p.id}')">🔍 ตรวจ QC</button>
+          </div>
         </div>
       </div>`).join('')}
   `;
