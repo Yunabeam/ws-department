@@ -3650,6 +3650,18 @@ async function renderQCQueue(mc) {
   `;
 }
 
+async function revertFromQC(projId, projectNo) {
+  if (!confirm(`ย้อนกลับ "${projectNo}" จาก QC → กำลังทำ?\nขั้นตอนทุกอันจะถูก reset เป็น assigned/pending`)) return;
+  await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+  const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId);
+  for (const s of (steps||[])) {
+    if (['confirmed'].includes(s.status)) continue;
+    await sb.from('process_steps').update({ status: s.assigned_name ? 'assigned' : 'pending', actual_completed_at: null }).eq('id', s.id);
+  }
+  showToast(`ย้อนกลับแล้ว — ${projectNo} กลับมาที่ "กำลังทำ"`, 'success');
+  await renderQCQueue(document.getElementById('main-content'));
+}
+
 async function openQCModal(projId) {
   const [{ data: p }, { data: steps }] = await Promise.all([
     sb.from('projects').select('*').eq('id', projId).single(),
