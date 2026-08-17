@@ -2525,11 +2525,11 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const isPrePlan = ['approved','planning'].includes(p.status);
     const hasSteps = steps.length > 0;
     const hasSched = steps.some(s => s.planned_start);
-    const allDoneOrConfirmed = steps.length > 0 && steps.every(s => ['confirmed','done_by_worker'].includes(s.status));
+    const allStepsDone = steps.length > 0 && steps.every(s => ['confirmed','done_by_worker'].includes(s.status));
     const statusTag = isPrePlan
       ? (!hasSteps
           ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ รอใส่ขั้นตอนการทำงาน</span>'
-          : allDoneOrConfirmed
+          : allStepsDone
           ? '<span class="status s-in_progress">กำลังดำเนินการ</span>'
           : '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>')
       : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
