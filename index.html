@@ -1067,26 +1067,77 @@ function filterProjects(q) {
 }
 
 function renderProjectTable(rows) {
+  const tid = 'pt' + Math.random().toString(36).slice(2,6);
+  if (!window._projTableData) window._projTableData = {};
+  window._projTableData[tid] = rows;
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
   const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
-  return `<div class="table-wrap"><table>
-    <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr></thead>
-    <tbody>${rows.map(r => `
-      <tr>
-        <td><b>${esc(r.project_no||'-')}</b></td>
-        <td>${esc(r.name)}</td>
-        <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
-        <td>${esc(r.requester_name||'-')}</td>
-        <td>${statusBadge(r.status)}</td>
-        <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
-        <td>${fmtDate(r.confirmed_deadline)}</td>
-        <td style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button>
-          ${isSuperAdmin ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${r.id}','${esc(r.project_no||'')}','${esc(r.name)}')">🗑️ ลบ</button>` : ''}
-        </td>
-      </tr>`).join('')}
-    </tbody>
+  const sel = (id, opts) => `<select id="${id}" onchange="filterProjectTable('${tid}')" style="width:100%;font-size:11px;padding:3px 4px;border:1px solid #e2e8f0;border-radius:5px;color:#64748b;background:#f8fafc;font-family:inherit">
+    <option value="">ทั้งหมด</option>${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
+  </select>`;
+  const requesters = [...new Set(rows.map(r=>r.requester_name).filter(Boolean))];
+  const rowsHtml = (data) => data.map(r=>`<tr>
+    <td><b>${esc(r.project_no||'-')}</b></td>
+    <td>${esc(r.name)}</td>
+    <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
+    <td>${esc(r.requester_name||'-')}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
+    <td>${fmtDate(r.confirmed_deadline)}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button>
+      ${isSuperAdmin?`<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${r.id}','${esc(r.project_no||'')}','${esc(r.name)}')">🗑️ ลบ</button>`:''}
+    </td></tr>`).join('');
+  return `<div class="table-wrap" id="${tid}"><table>
+    <thead>
+      <tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr>
+      <tr style="background:#f8fafc">
+        <td colspan="2" style="padding:4px 8px"><input placeholder="🔍 ค้นหา..." id="${tid}-search" oninput="filterProjectTable('${tid}')" style="width:100%;font-size:12px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:5px;font-family:inherit"></td>
+        <td style="padding:4px 6px">${sel(tid+'-type',[['part','ชิ้นส่วน'],['project','โปรเจค']])}</td>
+        <td style="padding:4px 6px">${sel(tid+'-req',requesters.map(n=>[n,n]))}</td>
+        <td style="padding:4px 6px">${sel(tid+'-status',[['pending_eng','รออนุมัติ (วศ.)'],['pending_executive','รออนุมัติผู้บริหาร'],['approved','อนุมัติแล้ว'],['planning','วางแผน'],['in_progress','กำลังทำ'],['pending_qc','รอ QC'],['qc_pass','QC ผ่าน'],['completed','เสร็จสิ้น'],['rejected','ปฏิเสธ']])}</td>
+        <td style="padding:4px 6px">${sel(tid+'-priority',[['very_urgent','เร่งด่วนมาก'],['urgent','เร่งด่วน'],['normal','ปกติ']])}</td>
+        <td colspan="2" style="padding:4px 8px"><button class="btn btn-sm btn-ghost" style="font-size:11px;padding:3px 8px" onclick="clearProjTableFilters('${tid}')">✕ ล้าง</button></td>
+      </tr>
+    </thead>
+    <tbody id="${tid}-body">${rowsHtml(rows)}</tbody>
   </table></div>`;
+}
+
+function filterProjectTable(tid) {
+  const all = window._projTableData?.[tid] || [];
+  const q = (document.getElementById(tid+'-search')?.value||'').toLowerCase();
+  const ty = document.getElementById(tid+'-type')?.value||'';
+  const rq = document.getElementById(tid+'-req')?.value||'';
+  const st = document.getElementById(tid+'-status')?.value||'';
+  const pr = document.getElementById(tid+'-priority')?.value||'';
+  const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+  const filtered = all.filter(r =>
+    (!q || (r.project_no||'').toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
+    (!ty || r.type === ty) && (!rq || r.requester_name === rq) &&
+    (!st || r.status === st) && (!pr || r.priority === pr)
+  );
+  const body = document.getElementById(tid+'-body');
+  if (!body) return;
+  body.innerHTML = filtered.length ? filtered.map(r=>`<tr>
+    <td><b>${esc(r.project_no||'-')}</b></td><td>${esc(r.name)}</td>
+    <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td><td>${esc(r.requester_name||'-')}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
+    <td>${fmtDate(r.confirmed_deadline)}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button>
+      ${isSuperAdmin?`<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${r.id}','${esc(r.project_no||'')}','${esc(r.name)}')">🗑️ ลบ</button>`:''}
+    </td></tr>`).join('')
+  : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูล</td></tr>`;
+}
+
+function clearProjTableFilters(tid) {
+  ['search','type','req','status','priority'].forEach(k => {
+    const el = document.getElementById(tid+'-'+k);
+    if (el) el.nodeName === 'INPUT' ? el.value='' : el.selectedIndex=0;
+  });
+  filterProjectTable(tid);
 }
 
 async function confirmDeleteProject(id, projNo, name) {
