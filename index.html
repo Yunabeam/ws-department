@@ -911,6 +911,22 @@ async function renderDashboard(mc) {
 // ============================================================
 // PENDING APPROVALS (eng_manager)
 // ============================================================
+function dashFilter(group, btn) {
+  document.querySelectorAll('.dash-rf').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const all = window._dashAllProjects || [];
+  const filterMap = {
+    all: () => true,
+    pending: p => ['pending_eng','pending_executive'].includes(p.status),
+    inProgress: p => ['in_progress','planning','assigning'].includes(p.status),
+    pendingQC: p => p.status === 'pending_qc',
+    done: p => p.status === 'completed',
+    rejected: p => p.status === 'rejected',
+  };
+  const el = document.getElementById('dash-recent');
+  if (el) el.innerHTML = renderProjectTable(all.filter(filterMap[group] || (() => true)));
+}
+
 async function showDashGroup(group, label) {
   const { data: all } = await sb.from('projects').select('*').order('created_at', { ascending: false });
   const filterMap = {
