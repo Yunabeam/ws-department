@@ -2982,8 +2982,14 @@ async function editStepInline(stepId, projId) {
     </div>
     <div class="form-group" style="margin-bottom:12px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
-        <input type="checkbox" id="es-outsource" ${esIsOutsource?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;}else{wr.disabled=false;}})(this.checked)">
-        ส่งออก (Outsource) — ไม่ระบุเครื่องจักรและช่าง
+        <input type="checkbox" id="es-outsource" ${esIsOutsource?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const icb=document.getElementById('es-internal');const di=document.getElementById('es-dept-name');if(c&&icb){icb.checked=false;di.style.display='none';}sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;}else{wr.disabled=document.getElementById('es-internal').checked;}})(this.checked)">
+        ส่งออก (Outsource)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-top:6px">
+        <input type="checkbox" id="es-internal" ${esIsInternal?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const ocb=document.getElementById('es-outsource');const di=document.getElementById('es-dept-name');if(c&&ocb)ocb.checked=false;sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;di.style.display='block';}else{wr.disabled=false;di.style.display='none';}})(this.checked)">
+        ส่งแผนกอื่น
+      </label>
+      <input id="es-dept-name" value="${esInitDept}" placeholder="ชื่อแผนก เช่น CNC, QA" style="display:${esIsInternal?'block':'none'};margin-top:6px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;width:100%">
       </label>
     </div>
     <div class="form-row">
