@@ -2937,18 +2937,23 @@ async function addStep(projId, seq) {
   const partno = document.getElementById('ps-partno').value.trim();
   const workerName = document.getElementById('ps-worker').value.trim();
   const isOutsource = document.getElementById('ps-outsource').checked;
-  const time = isOutsource ? null : parseFloat(document.getElementById('ps-time').value);
+  const isInternal = document.getElementById('ps-internal')?.checked;
+  const deptName = document.getElementById('ps-dept-name')?.value.trim();
+  const isExternal = isOutsource || isInternal;
+  const time = isExternal ? null : parseFloat(document.getElementById('ps-time').value);
   const qty = parseInt(document.getElementById('ps-qty').value);
   if (!name || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
-  if (!isOutsource && !time) { showToast('กรุณาระบุเวลาต่อชิ้น หรือติ๊ก "ส่งออก"', 'error'); return; }
+  if (isInternal && !deptName) { showToast('กรุณาระบุชื่อแผนก', 'error'); return; }
+  if (!isExternal && !time) { showToast('กรุณาระบุเวลาต่อชิ้น หรือติ๊ก "ส่งออก" / "ส่งแผนกอื่น"', 'error'); return; }
   const notes = document.getElementById('ps-notes').value;
+  const machineVal = isOutsource ? 'ส่งออก (จัดซื้อ)' : isInternal ? `แผนก ${deptName}` : machine;
   await sb.from('process_steps').insert({
     project_id: projId, seq, step_name: name,
-    machine: isOutsource ? 'ส่งออก (จัดซื้อ)' : machine,
+    machine: machineVal,
     part_no: partno, time_per_piece: time, qty,
     assigned_name: workerName || null,
     status: workerName ? 'assigned' : 'pending',
-    notes: isOutsource ? (notes ? notes + ' [Outsource]' : '[Outsource]') : notes
+    notes
   });
   document.getElementById('modal').classList.remove('modal-lg');
   showToast(`เพิ่มขั้นตอนที่ ${seq} แล้ว`, 'success'); closeModal();
