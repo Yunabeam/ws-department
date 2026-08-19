@@ -902,6 +902,29 @@ async function renderDashboard(mc) {
 // ============================================================
 // PENDING APPROVALS (eng_manager)
 // ============================================================
+async function showDashGroup(group, label) {
+  const { data: all } = await sb.from('projects').select('*').order('created_at', { ascending: false });
+  const filterMap = {
+    pending: p => ['pending_eng','pending_executive'].includes(p.status),
+    inProgress: p => ['in_progress','planning','assigning'].includes(p.status),
+    pendingQC: p => p.status === 'pending_qc',
+    qcPass: p => p.status === 'qc_pass',
+    done: p => p.status === 'completed',
+    rejected: p => p.status === 'rejected',
+    urgent: p => p.priority === 'very_urgent' && !['completed','rejected'].includes(p.status),
+  };
+  const list = (all || []).filter(filterMap[group] || (() => false));
+  openModal(label, list.length === 0
+    ? `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในหมวดนี้</div>`
+    : `<div style="display:flex;flex-direction:column;gap:8px">${list.map(p => `
+      <div style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:#fff">
+        <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(p.project_no||'—')} · ${esc(p.group_no||'—')}</div>
+        <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(p.name)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">ผู้ขอ: ${esc(p.requester_name||'-')} · Deadline: ${fmtDate(p.confirmed_deadline)} · <span class="status ${p.status?'s-'+p.status:''}" style="font-size:11px">${STATUS_LABELS[p.status]||p.status}</span></div>
+      </div>`).join('')}</div>`,
+  [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
+}
+
 async function renderPendingApprovals(mc) {
   const { data } = await sb.from('projects').select('*').eq('status','pending_eng').order('created_at');
   const rows = data || [];
