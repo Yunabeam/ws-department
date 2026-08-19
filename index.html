@@ -2906,14 +2906,29 @@ async function showWorkerHours(workerName) {
 function toggleOutsource(checked) {
   const timeInput = document.getElementById('ps-time');
   const machineSelect = document.getElementById('ps-machine');
+  const workerSel = document.getElementById('ps-worker');
+  const internalCb = document.getElementById('ps-internal');
+  const deptInput = document.getElementById('ps-dept-name');
+  if (checked && internalCb) { internalCb.checked = false; if (deptInput) deptInput.style.display='none'; }
   timeInput.disabled = checked;
   timeInput.value = checked ? '' : timeInput.value;
-  if (checked) {
-    machineSelect.value = '';
-    machineSelect.disabled = true;
-  } else {
-    machineSelect.disabled = false;
-  }
+  if (workerSel) { workerSel.disabled = checked; if (checked) workerSel.value = ''; }
+  if (checked) { machineSelect.value = ''; machineSelect.disabled = true; }
+  else { machineSelect.disabled = false; }
+}
+
+function toggleInternalDept(checked) {
+  const timeInput = document.getElementById('ps-time');
+  const machineSelect = document.getElementById('ps-machine');
+  const workerSel = document.getElementById('ps-worker');
+  const outsourceCb = document.getElementById('ps-outsource');
+  const deptInput = document.getElementById('ps-dept-name');
+  if (checked && outsourceCb) { outsourceCb.checked = false; }
+  timeInput.disabled = checked;
+  timeInput.value = checked ? '' : timeInput.value;
+  if (workerSel) { workerSel.disabled = checked; if (checked) workerSel.value = ''; }
+  if (checked) { machineSelect.value = ''; machineSelect.disabled = true; if (deptInput) deptInput.style.display='block'; }
+  else { machineSelect.disabled = false; if (deptInput) deptInput.style.display='none'; }
 }
 
 async function addStep(projId, seq) {
