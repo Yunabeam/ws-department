@@ -3013,10 +3013,14 @@ async function editStepInline(stepId, projId) {
       const qty = parseInt(document.getElementById('es-qty').value);
       if (!name || !qty) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
       const isOut = document.getElementById('es-outsource').checked;
-      const workerName = isOut ? null : document.getElementById('es-worker').value;
+      const isInt = document.getElementById('es-internal')?.checked;
+      const deptVal = document.getElementById('es-dept-name')?.value.trim();
+      if (isInt && !deptVal) { showToast('กรุณาระบุชื่อแผนก', 'error'); return; }
+      const workerName = (isOut || isInt) ? null : document.getElementById('es-worker').value;
+      const machineVal = isOut ? 'ส่งออก (จัดซื้อ)' : isInt ? `แผนก ${deptVal}` : document.getElementById('es-machine').value;
       await sb.from('process_steps').update({
         step_name: name,
-        machine: isOut ? 'ส่งออก (จัดซื้อ)' : document.getElementById('es-machine').value,
+        machine: machineVal,
         part_no: document.getElementById('es-partno').value.trim(),
         assigned_name: workerName || null,
         status: workerName ? 'assigned' : (s.status === 'pending' ? 'pending' : s.status),
