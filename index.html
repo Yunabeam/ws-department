@@ -2966,6 +2966,9 @@ async function editStepInline(stepId, projId) {
   const workers = getWorkerList();
   const machines = getMachineList();
   const esIsOutsource = s.machine === 'ส่งออก (จัดซื้อ)';
+  const esIsInternal = s.machine?.startsWith('แผนก ');
+  const esIsExternal = esIsOutsource || esIsInternal;
+  const esInitDept = esIsInternal ? s.machine.replace('แผนก ','') : '';
   openModal(`✏️ แก้ไขขั้นตอนที่ ${s.seq}`, `
     <div class="form-row">
       <div class="form-group"><label>ชื่อขั้นตอน *</label><input id="es-name" value="${esc(s.step_name)}"></div>
