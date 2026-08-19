@@ -1109,10 +1109,12 @@ function filterProjectTable(tid) {
   const ty = document.getElementById(tid+'-type')?.value||'';
   const st = document.getElementById(tid+'-status')?.value||'';
   const pr = document.getElementById(tid+'-priority')?.value||'';
+  const rq = document.getElementById(tid+'-requester')?.value||'';
   const filtered = all.filter(r =>
     (!ty || r.type === ty) &&
     (!st || r.status === st) &&
-    (!pr || r.priority === pr)
+    (!pr || r.priority === pr) &&
+    (!rq || r.requester_name === rq)
   );
   const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   const body = document.getElementById(tid+'-body');
