@@ -3008,31 +3008,36 @@ async function editStepInline(stepId, projId) {
         </select>
       </div>
     </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
-        <input type="checkbox" id="es-outsource" ${esIsOutsource?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const icb=document.getElementById('es-internal');const di=document.getElementById('es-dept-name');if(c&&icb){icb.checked=false;di.style.display='none';}sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;}else{wr.disabled=document.getElementById('es-internal').checked;}})(this.checked)">
-        ส่งออก (Outsource)
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-top:6px">
-        <input type="checkbox" id="es-internal" ${esIsInternal?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const ocb=document.getElementById('es-outsource');const di=document.getElementById('es-dept-name');if(c&&ocb)ocb.checked=false;sel.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;di.style.display='block';}else{wr.disabled=false;di.style.display='none';}})(this.checked)">
-        ส่งแผนกอื่น
-      </label>
-      <input id="es-dept-name" value="${esInitDept}" placeholder="ชื่อแผนก เช่น CNC, QA" style="display:${esIsInternal?'block':'none'};margin-top:6px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;width:100%">
-      </label>
-    </div>
     <div class="form-row">
       <div class="form-group"><label>Part No.</label><input id="es-partno" value="${esc(s.part_no||'')}"></div>
       <div class="form-group">
         <label>ช่างผู้รับผิดชอบ</label>
-        <select id="es-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" ${esIsOutsource?'disabled':''}>
+        <select id="es-worker" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit" ${esIsExternal?'disabled':''}>
           <option value="">— เลือกช่าง —</option>
-          ${workers.map(w=>`<option value="${w}" ${!esIsOutsource&&s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
+          ${workers.map(w=>`<option value="${w}" ${!esIsExternal&&s.assigned_name===w?'selected':''}>${esc(w)}</option>`).join('')}
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>เวลาต่อชิ้น (นาที)</label><input id="es-time" type="number" min="0.1" step="0.1" value="${s.time_per_piece||''}"></div>
-      <div class="form-group"><label>จำนวน *</label><input id="es-qty" type="number" min="1" value="${s.qty}"></div>
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:10px">
+      <div style="width:140px;flex-shrink:0">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">เวลาต่อชิ้น (นาที)</label>
+        <input id="es-time" type="number" min="0.1" step="0.1" placeholder="นาที" value="${s.time_per_piece||''}" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box" ${esIsExternal?'disabled':''}>
+      </div>
+      <div style="width:80px;flex-shrink:0">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">จำนวน *</label>
+        <input id="es-qty" type="number" min="1" value="${s.qty}" style="width:100%;padding:10px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;text-align:center">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px;border:1.5px solid ${esIsOutsource?'#0369a1':'var(--border)'};border-radius:8px;font-size:13px;font-weight:500;background:${esIsOutsource?'#e0f2fe':'#fff'};color:${esIsOutsource?'#0369a1':'inherit'};user-select:none" id="es-outsource-label">
+        <input type="checkbox" id="es-outsource" ${esIsOutsource?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const ti=document.getElementById('es-time');const icb=document.getElementById('es-internal');const di=document.getElementById('es-dept-name');const ol=document.getElementById('es-outsource-label');const il=document.getElementById('es-internal-label');if(c&&icb){icb.checked=false;di.style.display='none';il.style.background='#fff';il.style.borderColor='var(--border)';il.style.color='inherit';}ol.style.background=c?'#e0f2fe':'#fff';ol.style.borderColor=c?'#0369a1':'var(--border)';ol.style.color=c?'#0369a1':'inherit';sel.disabled=c;ti.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;}else{wr.disabled=document.getElementById('es-internal').checked;}})(this.checked)">
+        📦 ส่งออก (Outsource)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 12px;border:1.5px solid ${esIsInternal?'#7c3aed':'var(--border)'};border-radius:8px;font-size:13px;font-weight:500;background:${esIsInternal?'#f3e8ff':'#fff'};color:${esIsInternal?'#7c3aed':'inherit'};user-select:none" id="es-internal-label">
+        <input type="checkbox" id="es-internal" ${esIsInternal?'checked':''} onchange="(function(c){const sel=document.getElementById('es-machine');const wr=document.getElementById('es-worker');const ti=document.getElementById('es-time');const ocb=document.getElementById('es-outsource');const di=document.getElementById('es-dept-name');const ol=document.getElementById('es-outsource-label');const il=document.getElementById('es-internal-label');if(c&&ocb){ocb.checked=false;ol.style.background='#fff';ol.style.borderColor='var(--border)';ol.style.color='inherit';}il.style.background=c?'#f3e8ff':'#fff';il.style.borderColor=c?'#7c3aed':'var(--border)';il.style.color=c?'#7c3aed':'inherit';sel.disabled=c;ti.disabled=c;if(c){sel.value='';wr.value='';wr.disabled=true;di.style.display='block';}else{wr.disabled=false;di.style.display='none';}})(this.checked)">
+        🏭 ส่งแผนกอื่น
+      </label>
+      <input id="es-dept-name" value="${esInitDept}" placeholder="ชื่อแผนก เช่น CNC" style="display:${esIsInternal?'flex':'none'};padding:7px 10px;border:1.5px solid #7c3aed;border-radius:8px;font-size:13px;font-family:inherit;width:120px">
     </div>
     <div class="form-group"><label>หมายเหตุ</label><input id="es-notes" value="${esc(s.notes||'')}"></div>
   `, [
