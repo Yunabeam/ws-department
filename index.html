@@ -2546,7 +2546,15 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
       const planEnd = s.planned_end || '';
       const isOverdue = !isDone && p.confirmed_deadline && todayStr() > p.confirmed_deadline;
       const isOutsource = s.machine === 'ส่งออก (จัดซื้อ)';
-      const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>` : s.status==='in_progress' ? `<span class="status s-in_progress">${isOutsource ? '📦 อยู่ที่ซัพพลายเออร์' : 'กำลังทำ'}</span>` : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>` : isOutsource ? `<span class="status" style="background:#e0f2fe;color:#0369a1">📦 ส่งซัพพลายเออร์</span>` : `<span class="status s-planning">รอวางแผน</span>`;
+      const isInternalTransfer = !isOutsource && s.machine?.startsWith('แผนก ');
+      const isExternalStep = isOutsource || isInternalTransfer;
+      const deptLabel = isInternalTransfer ? s.machine : '';
+      const stepStatus = isDone ? `<span class="status s-confirmed">เสร็จ</span>`
+        : s.status==='in_progress' ? `<span class="status s-in_progress">${isOutsource ? '📦 อยู่ที่ซัพพลายเออร์' : isInternalTransfer ? `🏭 อยู่ที่${deptLabel}` : 'กำลังทำ'}</span>`
+        : isLocked ? `<span style="font-size:12px;color:#94a3b8">🔒 รอขั้นก่อน</span>`
+        : isOutsource ? `<span class="status" style="background:#e0f2fe;color:#0369a1">📦 ส่งซัพพลายเออร์</span>`
+        : isInternalTransfer ? `<span class="status" style="background:#f3e8ff;color:#7c3aed">🏭 ส่ง${deptLabel}</span>`
+        : `<span class="status s-planning">รอวางแผน</span>`;
       const overdueTag = isOverdue ? `<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:8px;font-weight:600">⚠️ เลยกำหนด</span>` : '';
       const dateDisplay = planStart ? (planEnd && planEnd !== planStart ? `${fmtDate(planStart)} – ${fmtDate(planEnd)}` : fmtDate(planStart)) : '';
       const workerLabel = s.assigned_name ? `<span style="font-size:12px;font-weight:600">${esc(s.assigned_name)}</span>` : isOutsource ? `<span style="font-size:12px;color:#0369a1;font-weight:600">จัดซื้อ</span>` : `<span style="font-size:12px;color:var(--muted)">ยังไม่มีช่าง</span>`;
