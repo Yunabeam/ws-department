@@ -892,20 +892,11 @@ async function renderDashboard(mc) {
     ${deadlineAlert}
     <div class="card">
       <div class="card-header"><span class="card-title">โปรเจคล่าสุด</span></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 0 10px 0">
-        <button class="btn btn-sm dash-rf active" onclick="dashFilter('all',this)">ทั้งหมด</button>
-        <button class="btn btn-sm dash-rf" onclick="dashFilter('pending',this)">รออนุมัติ</button>
-        <button class="btn btn-sm dash-rf" onclick="dashFilter('inProgress',this)">กำลังทำ</button>
-        <button class="btn btn-sm dash-rf" onclick="dashFilter('pendingQC',this)">รอ QC</button>
-        <button class="btn btn-sm dash-rf" onclick="dashFilter('done',this)">เสร็จสิ้น</button>
-        <button class="btn btn-sm dash-rf" onclick="dashFilter('rejected',this)">ปฏิเสธ</button>
-      </div>
       <div id="dash-recent"></div>
     </div>
   `;
-  const { data: recent } = await sb.from('projects').select('*').order('created_at', { ascending: false });
-  window._dashAllProjects = recent || [];
-  document.getElementById('dash-recent').innerHTML = renderProjectTable(window._dashAllProjects);
+  const { data: recent } = await sb.from('projects').select('*').order('created_at', { ascending: false }).limit(10);
+  document.getElementById('dash-recent').innerHTML = renderProjectTable(recent || []);
 }
 
 // ============================================================
