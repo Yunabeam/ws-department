@@ -3741,6 +3741,38 @@ async function renderCreateRequest(mc) {
   `;
 }
 
+function partRowHtml(i, partNo='', qty='') {
+  return `<div id="part-row-${i}" style="display:flex;gap:6px;align-items:center">
+    <input type="text" placeholder="Part No. เช่น 0001" value="${esc(partNo)}" oninput="saveReqDraft()" data-part-no="${i}" style="flex:1.5;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+    <input type="number" placeholder="จำนวน" min="1" value="${qty}" oninput="saveReqDraft()" data-part-qty="${i}" style="flex:0.8;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+    <button type="button" onclick="removePartRow(${i})" style="padding:6px 10px;border:none;background:#fee2e2;color:#dc2626;border-radius:7px;cursor:pointer;font-size:14px">✕</button>
+  </div>`;
+}
+
+function addPartRow() {
+  const list = document.getElementById('req-parts-list');
+  if (!list) return;
+  const i = Date.now();
+  list.insertAdjacentHTML('beforeend', partRowHtml(i));
+}
+
+function removePartRow(i) {
+  document.getElementById('part-row-'+i)?.remove();
+  saveReqDraft();
+}
+
+function getPartRows() {
+  const list = document.getElementById('req-parts-list');
+  if (!list) return [];
+  const rows = [];
+  list.querySelectorAll('[data-part-no]').forEach(el => {
+    const idx = el.dataset.partNo;
+    const qty = list.querySelector(`[data-part-qty="${idx}"]`)?.value;
+    if (el.value.trim()) rows.push({ part_no: el.value.trim(), qty: parseInt(qty)||0 });
+  });
+  return rows;
+}
+
 function saveReqDraft() {
   const draft = {
     requester: document.getElementById('req-requester')?.value,
@@ -3753,6 +3785,7 @@ function saveReqDraft() {
     sample: document.getElementById('req-sample')?.value,
     date: document.getElementById('req-date')?.value,
     notes: document.getElementById('req-notes')?.value,
+    parts: getPartRows(),
   };
   localStorage.setItem('req_draft', JSON.stringify(draft));
 }
