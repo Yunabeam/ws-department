@@ -3854,11 +3854,12 @@ async function renderMyRequests(mc) {
     <div class="card">
       ${(data||[]).length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีใบคำร้อง</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>สถานะ</th><th>Deadline</th><th></th></tr></thead>
+        <thead><tr><th>เลขที่</th><th>ชื่องาน</th><th>ใช้กับเครื่อง</th><th>ประเภท</th><th>สถานะ</th><th>Deadline</th><th></th></tr></thead>
         <tbody>${(data||[]).map(p => `
           <tr>
             <td><b>${esc(p.project_no||'-')}</b></td>
             <td>${esc(p.name)}</td>
+            <td style="color:var(--muted);font-size:13px">${esc(p.machine_location||'-')}</td>
             <td>${p.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
             <td>${statusBadge(p.status)}</td>
             <td>${fmtDate(p.confirmed_deadline)}</td>
