@@ -2654,6 +2654,12 @@ function toggleWSCard(id) {
   if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
 }
 
+async function wsSendToInternalDept(stepId, projId, deptName) {
+  await sb.from('process_steps').update({ assigned_name: deptName, status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
+  showToast(`บันทึกแล้ว — ส่งงานให้${deptName}แล้ว`, 'success');
+  setTimeout(() => navigateTo('ws-status-plan'), 100);
+}
+
 async function wsSendToSupplier(stepId, projId) {
   await sb.from('process_steps').update({ assigned_name: 'จัดซื้อ', status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
   showToast('บันทึกแล้ว — ส่งซัพพลายเออร์แล้ว', 'success');
