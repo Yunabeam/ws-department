@@ -3809,6 +3809,7 @@ async function submitRequest() {
   const dept = document.getElementById('req-dept').value.trim();
   const hasDrawing = document.querySelector('input[name="req-drawing"]:checked')?.value === 'yes';
   if (!requesterName || !name || !machine || !qty || !date) { showToast('กรุณากรอกข้อมูลที่จำเป็น', 'error'); return; }
+  const parts = getPartRows();
   const payload = {
     type: 'part', name, machine_location: machine, qty, requested_date: date,
     requester_id: currentProfile.id, requester_name: requesterName,
@@ -3817,7 +3818,8 @@ async function submitRequest() {
     sample_note: !hasDrawing ? document.getElementById('req-sample').value.trim() : null,
     priority: 'normal',
     notes: document.getElementById('req-notes').value.trim(),
-    status: 'pending_eng'
+    status: 'pending_eng',
+    part_details: parts.length ? parts : null,
   };
   const { data, error } = await sb.from('projects').insert(payload).select().single();
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
