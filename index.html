@@ -1091,7 +1091,12 @@ function renderProjectTable(rows, tableId) {
         </td>
       </tr>`).join('');
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
-  return `<div class="table-wrap" id="${tid}"><table>
+  return `<div class="table-wrap" id="${tid}"><table style="table-layout:fixed;width:100%">
+    <colgroup>
+      <col style="width:110px"><col style="width:auto"><col style="width:90px">
+      <col style="width:130px"><col style="width:120px"><col style="width:110px">
+      <col style="width:100px"><col style="width:90px">
+    </colgroup>
     <thead><tr>
       <th>เลขที่</th><th>ชื่องาน</th>
       ${thSel(tid+'-type','ประเภท',[['part','ชิ้นส่วน'],['project','โปรเจค']])}
