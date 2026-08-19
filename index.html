@@ -1225,8 +1225,22 @@ async function openProjectDetail(id) {
     </div>
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
-      <div class="detail-item"><div class="detail-label">จำนวน</div><div class="detail-value">${p.qty} ชิ้น</div></div>
+      <div class="detail-item"><div class="detail-label">จำนวนรวม</div><div class="detail-value">${p.qty} ชิ้น</div></div>
     </div>
+    ${p.part_details && p.part_details.length ? `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:4px 0">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">รายละเอียด Part</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--muted);font-size:11px">
+          <th style="text-align:left;padding:2px 6px;font-weight:600">Part No.</th>
+          <th style="text-align:right;padding:2px 6px;font-weight:600">จำนวน</th>
+        </tr></thead>
+        <tbody>${p.part_details.map(pt=>`<tr>
+          <td style="padding:3px 6px">${esc(pt.part_no)}</td>
+          <td style="padding:3px 6px;text-align:right;font-weight:600">${pt.qty} ชิ้น</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
     ${steps && steps.length ? `<hr><div class="card-title" style="margin-bottom:10px">ขั้นตอน Process</div>${steps.map(s => `
       <div class="step-card">
         <div class="step-card-head">
