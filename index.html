@@ -892,13 +892,11 @@ async function renderDashboard(mc) {
     ${deadlineAlert}
     <div class="card">
       <div class="card-header"><span class="card-title">โปรเจคล่าสุด</span></div>
-      ${renderProjectFilterBar('dash')}
-      <div id="dash-table"></div>
+      <div id="dash-recent"></div>
     </div>
   `;
-  const { data: recent } = await sb.from('projects').select('*').order('created_at', { ascending: false });
-  window._dashAllProjects = recent || [];
-  document.getElementById('dash-table').innerHTML = renderProjectTable(window._dashAllProjects);
+  const { data: recent } = await sb.from('projects').select('*').order('created_at', { ascending: false }).limit(10);
+  document.getElementById('dash-recent').innerHTML = renderProjectTable(recent || []);
 }
 
 // ============================================================
