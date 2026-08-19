@@ -1046,24 +1046,59 @@ async function engReject(id) {
 async function renderAllProjects(mc) {
   const { data } = await sb.from('projects').select('*').order('created_at', { ascending: false });
   window._allProjects = data || [];
-  window._isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📁 โปรเจคทั้งหมด</div></div>
     <div class="card">
-      <div class="card-header">
-        <input type="text" id="proj-search" placeholder="ค้นหาชื่อ/เลขที่..." style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;width:250px" oninput="filterProjects(this.value)">
-      </div>
+      ${renderProjectFilterBar('proj')}
       <div id="proj-table">${renderProjectTable(data||[])}</div>
     </div>
   `;
 }
 
-function filterProjects(q) {
-  const filtered = window._allProjects.filter(p =>
-    (p.project_no||'').toLowerCase().includes(q.toLowerCase()) ||
-    p.name.toLowerCase().includes(q.toLowerCase())
+function renderProjectFilterBar(prefix) {
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:12px;align-items:center">
+    <input type="text" id="${prefix}-f-search" placeholder="🔍 ค้นหาชื่อ/เลขที่..." style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:180px" oninput="applyProjFilters('${prefix}')">
+    <select id="${prefix}-f-status" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit" onchange="applyProjFilters('${prefix}')">
+      <option value="">สถานะ: ทั้งหมด</option>
+      <option value="pending_eng">รออนุมัติ (วศ.)</option>
+      <option value="pending_executive">รออนุมัติผู้บริหาร</option>
+      <option value="approved">อนุมัติแล้ว</option>
+      <option value="planning">วางแผน</option>
+      <option value="in_progress">กำลังทำ</option>
+      <option value="pending_qc">รอตรวจ QC</option>
+      <option value="qc_pass">QC ผ่าน</option>
+      <option value="completed">เสร็จสิ้น</option>
+      <option value="rejected">ปฏิเสธ</option>
+    </select>
+    <select id="${prefix}-f-priority" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit" onchange="applyProjFilters('${prefix}')">
+      <option value="">ความเร่งด่วน: ทั้งหมด</option>
+      <option value="very_urgent">เร่งด่วนมาก</option>
+      <option value="urgent">เร่งด่วน</option>
+      <option value="normal">ปกติ</option>
+    </select>
+    <select id="${prefix}-f-type" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit" onchange="applyProjFilters('${prefix}')">
+      <option value="">ประเภท: ทั้งหมด</option>
+      <option value="part">ชิ้นส่วน</option>
+      <option value="project">โปรเจค</option>
+    </select>
+    <button class="btn btn-sm btn-ghost" onclick="(function(){['${prefix}-f-search','${prefix}-f-status','${prefix}-f-priority','${prefix}-f-type'].forEach(id=>{const el=document.getElementById(id);if(el)el.nodeName==='INPUT'?el.value='':el.selectedIndex=0;});applyProjFilters('${prefix}')})()">✕ ล้าง</button>
+  </div>`;
+}
+
+function applyProjFilters(prefix) {
+  const src = prefix === 'proj' ? window._allProjects : window._dashAllProjects || [];
+  const q = (document.getElementById(prefix+'-f-search')?.value||'').toLowerCase();
+  const st = document.getElementById(prefix+'-f-status')?.value||'';
+  const pr = document.getElementById(prefix+'-f-priority')?.value||'';
+  const ty = document.getElementById(prefix+'-f-type')?.value||'';
+  const filtered = src.filter(p =>
+    (!q || (p.project_no||'').toLowerCase().includes(q) || p.name.toLowerCase().includes(q)) &&
+    (!st || p.status === st) &&
+    (!pr || p.priority === pr) &&
+    (!ty || p.type === ty)
   );
-  document.getElementById('proj-table').innerHTML = renderProjectTable(filtered);
+  const el = document.getElementById(prefix+'-table');
+  if (el) el.innerHTML = renderProjectTable(filtered);
 }
 
 function renderProjectTable(rows) {
