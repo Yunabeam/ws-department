@@ -881,13 +881,13 @@ async function renderDashboard(mc) {
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📊 ภาพรวม</div><div class="section-sub">สรุปสถานะงานทั้งหมด</div></div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-num" style="color:var(--amber)">${counts.pending}</div><div class="stat-label">รออนุมัติ</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--teal)">${counts.inProgress}</div><div class="stat-label">กำลังดำเนินการ</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:purple">${counts.pendingQC}</div><div class="stat-label">รอตรวจ QC</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:#7c3aed">${counts.qcPass}</div><div class="stat-label">QC ผ่าน (รอรับงาน)</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--green)">${counts.done}</div><div class="stat-label">เสร็จสิ้น</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--muted)">${counts.rejected}</div><div class="stat-label">ปฏิเสธ</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:var(--red)">${counts.urgent}</div><div class="stat-label">งานเร่งด่วนมาก</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('pending','รออนุมัติ')"><div class="stat-num" style="color:var(--amber)">${counts.pending}</div><div class="stat-label">รออนุมัติ</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('inProgress','กำลังดำเนินการ')"><div class="stat-num" style="color:var(--teal)">${counts.inProgress}</div><div class="stat-label">กำลังดำเนินการ</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('pendingQC','รอตรวจ QC')"><div class="stat-num" style="color:purple">${counts.pendingQC}</div><div class="stat-label">รอตรวจ QC</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('qcPass','QC ผ่าน (รอรับงาน)')"><div class="stat-num" style="color:#7c3aed">${counts.qcPass}</div><div class="stat-label">QC ผ่าน (รอรับงาน)</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('done','เสร็จสิ้น')"><div class="stat-num" style="color:var(--green)">${counts.done}</div><div class="stat-label">เสร็จสิ้น</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('rejected','ปฏิเสธ')"><div class="stat-num" style="color:var(--muted)">${counts.rejected}</div><div class="stat-label">ปฏิเสธ</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="showDashGroup('urgent','งานเร่งด่วนมาก')"><div class="stat-num" style="color:var(--red)">${counts.urgent}</div><div class="stat-label">งานเร่งด่วนมาก</div></div>
     </div>
     ${deadlineAlert}
     <div class="card">
