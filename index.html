@@ -2691,7 +2691,7 @@ async function wsAssignWorker(stepId, projId, sel) {
 async function wsSendToWorkers(projId) {
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
-  if (!steps || steps.some(s => !s.assigned_name && s.machine !== 'ส่งออก (จัดซื้อ)')) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
+  if (!steps || steps.some(s => !s.assigned_name && s.machine !== 'ส่งออก (จัดซื้อ)' && !s.machine?.startsWith('แผนก '))) { showToast('กรุณากำหนดช่างทุกขั้นตอนก่อน', 'error'); return; }
   for (const s of steps) {
     if (['pending','failed_qc'].includes(s.status) && s.assigned_name) {
       await sb.from('process_steps').update({ status: 'assigned' }).eq('id', s.id);
