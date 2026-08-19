@@ -2893,21 +2893,24 @@ async function openPlanModal(projId) {
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>เวลาต่อชิ้น (นาที)</label>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400">
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px">
+      <div style="flex:1;min-width:0">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">เวลาต่อชิ้น (นาที)</label>
+        <input id="ps-time" type="number" min="0.1" step="0.1" placeholder="ระบุเวลา" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box">
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400">
             <input type="checkbox" id="ps-outsource" onchange="toggleOutsource(this.checked)"> ส่งออก (Outsource)
           </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400">
             <input type="checkbox" id="ps-internal" onchange="toggleInternalDept(this.checked)"> ส่งแผนกอื่น
           </label>
-          <input id="ps-dept-name" placeholder="ชื่อแผนก เช่น CNC, QA" style="display:none;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+          <input id="ps-dept-name" placeholder="ชื่อแผนก เช่น CNC, QA" style="display:none;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
         </div>
-        <input id="ps-time" type="number" min="0.1" step="0.1" style="margin-top:6px" placeholder="ระบุเวลา (นาที)">
       </div>
-      <div class="form-group"><label>จำนวน *</label><input id="ps-qty" type="number" min="1" value="${p.qty}"></div>
+      <div style="width:90px;flex-shrink:0">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">จำนวน *</label>
+        <input id="ps-qty" type="number" min="1" value="${p.qty}" style="width:100%;padding:10px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;box-sizing:border-box;text-align:center">
+      </div>
     </div>
     <div class="form-group"><label>หมายเหตุ</label><input id="ps-notes" placeholder="หมายเหตุเพิ่มเติม"></div>
   `, [
