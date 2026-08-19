@@ -1072,21 +1072,25 @@ function renderProjectTable(rows) {
   window._projTableData[tid] = rows;
   if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div>ไม่มีข้อมูล</div>';
   const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
-  const sel = (id, opts) => `<select id="${id}" onchange="filterProjectTable('${tid}')" style="width:100%;font-size:11px;padding:3px 4px;border:1px solid #e2e8f0;border-radius:5px;color:#64748b;background:#f8fafc;font-family:inherit">
-    <option value="">ทั้งหมด</option>${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
-  </select>`;
+
+  const multiDrop = (key, label, items) => {
+    const btnId = `${tid}-${key}-btn`;
+    const dropId = `${tid}-${key}-drop`;
+    const labelId = `${tid}-${key}-label`;
+    const checks = items.map(([v,l]) => `<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;font-size:13px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${v}" onchange="filterProjectTable('${tid}')" style="accent-color:var(--primary);width:14px;height:14px"> ${l}
+    </label>`).join('');
+    return `<div style="position:relative;width:100%">
+      <button id="${btnId}" onclick="togglePtDrop('${tid}','${key}')" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:5px;color:#64748b;background:#f8fafc;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;font-family:inherit">
+        <span id="${labelId}">${label}</span><span>▾</span>
+      </button>
+      <div id="${dropId}" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:4px;min-width:160px;max-height:260px;overflow-y:auto">
+        ${checks}
+      </div>
+    </div>`;
+  };
+
   const requesters = [...new Set(rows.map(r=>r.requester_name).filter(Boolean))];
-  const reqCheckboxes = requesters.map(n=>`<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;font-size:13px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-    <input type="checkbox" value="${esc(n)}" onchange="filterProjectTable('${tid}')" style="accent-color:var(--primary);width:14px;height:14px"> ${esc(n)}
-  </label>`).join('');
-  const reqDropBtn = `<div style="position:relative;width:100%">
-    <button id="${tid}-req-btn" onclick="toggleReqDrop('${tid}')" style="width:100%;font-size:11px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:5px;color:#64748b;background:#f8fafc;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;font-family:inherit">
-      <span id="${tid}-req-label">ทั้งหมด</span><span>▾</span>
-    </button>
-    <div id="${tid}-req-drop" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:4px;min-width:200px;max-height:260px;overflow-y:auto">
-      ${reqCheckboxes}
-    </div>
-  </div>`;
   const rowsHtml = (data) => data.map(r=>`<tr>
     <td><b>${esc(r.project_no||'-')}</b></td>
     <td>${esc(r.name)}</td>
@@ -1099,15 +1103,16 @@ function renderProjectTable(rows) {
       <button class="btn btn-sm btn-ghost" onclick="openProjectDetail('${r.id}')">ดู</button>
       ${isSuperAdmin?`<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer" onclick="confirmDeleteProject('${r.id}','${esc(r.project_no||'')}','${esc(r.name)}')">🗑️ ลบ</button>`:''}
     </td></tr>`).join('');
+
   return `<div class="table-wrap" id="${tid}"><table>
     <thead>
       <tr><th>เลขที่</th><th>ชื่องาน</th><th>ประเภท</th><th>ผู้ขอ</th><th>สถานะ</th><th>ความเร่งด่วน</th><th>Deadline</th><th></th></tr>
       <tr style="background:#f8fafc">
         <td colspan="2" style="padding:4px 8px"><input placeholder="🔍 ค้นหา..." id="${tid}-search" oninput="filterProjectTable('${tid}')" style="width:100%;font-size:12px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:5px;font-family:inherit"></td>
-        <td style="padding:4px 6px">${sel(tid+'-type',[['part','ชิ้นส่วน'],['project','โปรเจค']])}</td>
-        <td style="padding:4px 6px">${reqDropBtn}</td>
-        <td style="padding:4px 6px">${sel(tid+'-status',[['pending_eng','รออนุมัติ (วศ.)'],['pending_executive','รออนุมัติผู้บริหาร'],['approved','อนุมัติแล้ว'],['planning','วางแผน'],['in_progress','กำลังทำ'],['pending_qc','รอ QC'],['qc_pass','QC ผ่าน'],['completed','เสร็จสิ้น'],['rejected','ปฏิเสธ']])}</td>
-        <td style="padding:4px 6px">${sel(tid+'-priority',[['very_urgent','เร่งด่วนมาก'],['urgent','เร่งด่วน'],['normal','ปกติ']])}</td>
+        <td style="padding:4px 6px">${multiDrop('type','ประเภท',[['part','ชิ้นส่วน'],['project','โปรเจค']])}</td>
+        <td style="padding:4px 6px">${multiDrop('req','ผู้ขอ',requesters.map(n=>[n,n]))}</td>
+        <td style="padding:4px 6px">${multiDrop('status','สถานะ',[['pending_eng','รออนุมัติ (วศ.)'],['pending_executive','รออนุมัติผู้บริหาร'],['approved','อนุมัติแล้ว'],['planning','วางแผน'],['in_progress','กำลังทำ'],['pending_qc','รอ QC'],['qc_pass','QC ผ่าน'],['completed','เสร็จสิ้น'],['rejected','ปฏิเสธ']])}</td>
+        <td style="padding:4px 6px">${multiDrop('priority','ความเร่งด่วน',[['very_urgent','เร่งด่วนมาก'],['urgent','เร่งด่วน'],['normal','ปกติ']])}</td>
         <td colspan="2" style="padding:4px 8px"><button class="btn btn-sm btn-ghost" style="font-size:11px;padding:3px 8px" onclick="clearProjTableFilters('${tid}')">✕ ล้าง</button></td>
       </tr>
     </thead>
@@ -1115,12 +1120,15 @@ function renderProjectTable(rows) {
   </table></div>`;
 }
 
-function toggleReqDrop(tid) {
-  const drop = document.getElementById(tid+'-req-drop');
-  const btn = document.getElementById(tid+'-req-btn');
+function togglePtDrop(tid, key) {
+  const drop = document.getElementById(`${tid}-${key}-drop`);
+  const btn = document.getElementById(`${tid}-${key}-btn`);
   if (!drop) return;
-  const isOpen = drop.style.display !== 'none';
-  if (isOpen) { drop.style.display = 'none'; return; }
+  if (drop.style.display !== 'none') { drop.style.display = 'none'; return; }
+  // close all other open drops for this table
+  ['type','req','status','priority'].forEach(k => {
+    if (k !== key) { const d = document.getElementById(`${tid}-${k}-drop`); if (d) d.style.display='none'; }
+  });
   const rect = btn.getBoundingClientRect();
   drop.style.top = (rect.bottom + 4) + 'px';
   drop.style.left = rect.left + 'px';
@@ -1132,19 +1140,27 @@ function toggleReqDrop(tid) {
 function filterProjectTable(tid) {
   const all = window._projTableData?.[tid] || [];
   const q = (document.getElementById(tid+'-search')?.value||'').toLowerCase();
-  const ty = document.getElementById(tid+'-type')?.value||'';
-  const st = document.getElementById(tid+'-status')?.value||'';
-  const pr = document.getElementById(tid+'-priority')?.value||'';
-  const drop = document.getElementById(tid+'-req-drop');
-  const checkedReq = drop ? [...drop.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value) : [];
-  const label = document.getElementById(tid+'-req-label');
-  if (label) label.textContent = checkedReq.length ? `${checkedReq.length} คน` : 'ทั้งหมด';
   const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
+
+  const getChecked = (key) => {
+    const drop = document.getElementById(`${tid}-${key}-drop`);
+    const vals = drop ? [...drop.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value) : [];
+    const lbl = document.getElementById(`${tid}-${key}-label`);
+    const defaultLabels = { type:'ประเภท', req:'ผู้ขอ', status:'สถานะ', priority:'ความเร่งด่วน' };
+    if (lbl) lbl.textContent = vals.length ? `${vals.length} รายการ` : (defaultLabels[key]||'ทั้งหมด');
+    return vals;
+  };
+  const chType = getChecked('type');
+  const chReq = getChecked('req');
+  const chStatus = getChecked('status');
+  const chPriority = getChecked('priority');
+
   const filtered = all.filter(r =>
     (!q || (r.project_no||'').toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
-    (!ty || r.type === ty) &&
-    (!checkedReq.length || checkedReq.includes(r.requester_name)) &&
-    (!st || r.status === st) && (!pr || r.priority === pr)
+    (!chType.length || chType.includes(r.type)) &&
+    (!chReq.length || chReq.includes(r.requester_name)) &&
+    (!chStatus.length || chStatus.includes(r.status)) &&
+    (!chPriority.length || chPriority.includes(r.priority))
   );
   const body = document.getElementById(tid+'-body');
   if (!body) return;
@@ -1164,12 +1180,13 @@ function filterProjectTable(tid) {
 function clearProjTableFilters(tid) {
   const search = document.getElementById(tid+'-search');
   if (search) search.value = '';
-  ['type','status','priority'].forEach(k => {
-    const el = document.getElementById(tid+'-'+k);
-    if (el) el.selectedIndex = 0;
+  ['type','req','status','priority'].forEach(key => {
+    const drop = document.getElementById(`${tid}-${key}-drop`);
+    if (drop) drop.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
+    const lbl = document.getElementById(`${tid}-${key}-label`);
+    const defaultLabels = { type:'ประเภท', req:'ผู้ขอ', status:'สถานะ', priority:'ความเร่งด่วน' };
+    if (lbl) lbl.textContent = defaultLabels[key]||'ทั้งหมด';
   });
-  const drop = document.getElementById(tid+'-req-drop');
-  if (drop) drop.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
   filterProjectTable(tid);
 }
 
