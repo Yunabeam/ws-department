@@ -1111,7 +1111,7 @@ function renderProjectTable(rows) {
         <td colspan="2" style="padding:4px 8px"><input placeholder="🔍 ค้นหา..." id="${tid}-search" oninput="filterProjectTable('${tid}')" style="width:100%;font-size:12px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:5px;font-family:inherit"></td>
         <td style="padding:4px 6px">${multiDrop('type','ประเภท',[['part','ชิ้นส่วน'],['project','โปรเจค']])}</td>
         <td style="padding:4px 6px">${multiDrop('req','ผู้ขอ',requesters.map(n=>[n,n]))}</td>
-        <td style="padding:4px 6px">${multiDrop('status','สถานะ',[['pending_eng','รออนุมัติ (วศ.)'],['pending_executive','รออนุมัติผู้บริหาร'],['approved','อนุมัติแล้ว'],['planning','วางแผน'],['in_progress','กำลังทำ'],['pending_qc','รอ QC'],['qc_pass','QC ผ่าน'],['completed','เสร็จสิ้น'],['rejected','ปฏิเสธ']])}</td>
+        <td style="padding:4px 6px">${multiDrop('status','สถานะ',[['pending_eng','รออนุมัติ (วศ.)'],['pending_executive','รออนุมัติผู้บริหาร'],['approved','อนุมัติแล้ว'],['planning','วางแผน'],['assigning','กำลังมอบหมาย'],['in_progress','กำลังทำ'],['pending_qc','รอตรวจ QC'],['qc_pass','QC ผ่าน'],['completed','เสร็จสิ้น'],['rejected','ปฏิเสธ']])}</td>
         <td style="padding:4px 6px">${multiDrop('priority','ความเร่งด่วน',[['very_urgent','เร่งด่วนมาก'],['urgent','เร่งด่วน'],['normal','ปกติ']])}</td>
         <td colspan="2" style="padding:4px 8px"><button class="btn btn-sm btn-ghost" style="font-size:11px;padding:3px 8px" onclick="clearProjTableFilters('${tid}')">✕ ล้าง</button></td>
       </tr>
