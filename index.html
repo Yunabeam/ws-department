@@ -2752,7 +2752,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
         ? `<span style="font-size:12px;color:#94a3b8">—</span>`
         : planStart
         ? `<div style="display:flex;flex-direction:column;gap:4px">
-            ${workerLabel}
+            <div style="display:flex;align-items:center;gap:6px">${workerLabel}${s.assigned_name ? `<button class="btn btn-sm" style="font-size:10px;padding:1px 6px;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer" onclick="wsUnassignWorker('${s.id}','${p.id}')" title="ยกเลิกช่างคนนี้">❌</button>` : ''}</div>
             <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
               <input type="date" value="${planStart}"
                 style="padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px"
@@ -2766,7 +2766,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
             </div>
            </div>`
         : `<div style="display:flex;flex-direction:column;gap:4px">
-            ${workerLabel}
+            <div style="display:flex;align-items:center;gap:6px">${workerLabel}${s.assigned_name ? `<button class="btn btn-sm" style="font-size:10px;padding:1px 6px;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer" onclick="wsUnassignWorker('${s.id}','${p.id}')" title="ยกเลิกช่างคนนี้">❌</button>` : ''}</div>
             <button class="btn btn-sm btn-primary" onclick="wsSetPlanToday('${s.id}','${p.id}')">📅 วางแผนวันนี้</button>
            </div>`;
       return `<div style="display:grid;grid-template-columns:36% 14% 1fr;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:start;${rowBg}">
