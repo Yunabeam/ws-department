@@ -3347,11 +3347,8 @@ async function deleteAdhocTask(id) {
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('ยกเลิกงานเรียบร้อย', 'success');
   const mc = document.getElementById('main-content');
-  if (document.querySelector('[data-page="ws-monitor"]') || window._currentPage === 'ws-monitor') {
-    renderWSMonitor(mc);
-  } else {
-    renderWSConfirmSteps(mc);
-  }
+  if (currentPage === 'ws-monitor') renderWSMonitor(mc);
+  else renderWSConfirmSteps(mc);
 }
 
 async function confirmAdhocTask(id) {
