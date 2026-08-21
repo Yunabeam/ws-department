@@ -1637,6 +1637,7 @@ async function renderWSMonitor(mc, selDate) {
   const workers = getWorkerList();
   const today = todayStr();
   const viewDate = selDate || today;
+  const isSuperAdmin = !!(currentUser?.is_super_admin || currentProfile?.is_super_admin);
 
   const [{ data: steps }, { data: stepsOrig }, { data: adhocMonitor }, { data: selfLogs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name,confirmed_deadline)').or(`planned_start.eq.${viewDate},and(status.in.(assigned,in_progress),planned_start.lt.${viewDate})`),
