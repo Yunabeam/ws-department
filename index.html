@@ -2581,15 +2581,28 @@ function _wsPlanCellHtml(s, p) {
   if (s.status === 'in_progress') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--teal)">${dateDisplay}</span></div>`;
   if (s.status === 'done_by_worker') return `<div>${workerLabel}<br><span style="font-size:11px;color:var(--amber)">รอยืนยัน</span></div>`;
   if (isLocked) return `<span style="font-size:12px;color:#94a3b8">—</span>`;
+  const unassignBtn = s.assigned_name ? `<button class="btn btn-sm" style="font-size:10px;padding:1px 6px;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer" onclick="wsUnassignWorker('${s.id}','${p.id}')" title="ยกเลิกช่างคนนี้">❌</button>` : '';
   if (planStart) return `<div style="display:flex;flex-direction:column;gap:4px">
-    ${workerLabel}
+    <div style="display:flex;align-items:center;gap:6px">${workerLabel}${unassignBtn}</div>
     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
       <input type="date" value="${planStart}" style="padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px" onchange="wsSavePlanDates('${s.id}','start',this.value)">
       <span style="font-size:11px;color:var(--muted)">–</span>
       <input type="date" value="${planEnd}" style="padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:11px" onchange="wsSavePlanDates('${s.id}','end',this.value)">
       <button class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer" onclick="wsClearPlanDate('${s.id}','${p.id}')">✕</button>
     </div></div>`;
-  return `<div style="display:flex;flex-direction:column;gap:4px">${workerLabel}<button class="btn btn-sm btn-primary" onclick="wsSetPlanToday('${s.id}','${p.id}')">📅 วางแผนวันนี้</button></div>`;
+  return `<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:center;gap:6px">${workerLabel}${unassignBtn}</div><button class="btn btn-sm btn-primary" onclick="wsSetPlanToday('${s.id}','${p.id}')">📅 วางแผนวันนี้</button></div>`;
+}
+
+async function wsUnassignWorker(stepId, projId) {
+  await sb.from('process_steps').update({ assigned_to: null, assigned_name: null, status: 'pending' }).eq('id', stepId);
+  let updatedStep = null;
+  for (const steps of Object.values(window._wsStepMap||{})) {
+    const s = steps.find(x => x.id === stepId);
+    if (s) { s.assigned_to = null; s.assigned_name = null; s.status = 'pending'; updatedStep = s; }
+  }
+  if (updatedStep) _wsSyncSummaryCache(updatedStep);
+  showToast('ยกเลิกช่างคนนี้แล้ว กรุณาเลือกช่างใหม่', 'success');
+  _wsRefreshPlanCell(stepId, projId);
 }
 
 function _wsRefreshPlanCell(stepId, projId) {
