@@ -3342,11 +3342,16 @@ async function doRevertStep(stepId, status) {
 }
 
 async function deleteAdhocTask(id) {
-  if (!confirm('ลบงานซัพพอร์ตนี้?')) return;
+  if (!confirm('ยกเลิกงานซัพพอร์ตนี้?')) return;
   const { error } = await sb.from('adhoc_tasks').delete().eq('id', id);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-  showToast('ลบเรียบร้อย', 'success');
-  renderWSConfirmSteps(document.getElementById('main-content'));
+  showToast('ยกเลิกงานเรียบร้อย', 'success');
+  const mc = document.getElementById('main-content');
+  if (document.querySelector('[data-page="ws-monitor"]') || window._currentPage === 'ws-monitor') {
+    renderWSMonitor(mc);
+  } else {
+    renderWSConfirmSteps(mc);
+  }
 }
 
 async function confirmAdhocTask(id) {
