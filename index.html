@@ -3209,12 +3209,15 @@ async function editStepInline(stepId, projId) {
       if (isInt && !deptVal) { showToast('กรุณาระบุชื่อแผนก', 'error'); return; }
       const workerName = (isOut || isInt) ? null : document.getElementById('es-worker').value;
       const machineVal = isOut ? 'ส่งออก (จัดซื้อ)' : isInt ? `แผนก ${deptVal}` : document.getElementById('es-machine').value;
+      // ถ้ายังไม่เริ่มงาน (pending/assigned/failed_qc) ให้สถานะตามการเลือกช่างเสมอ
+      // งานที่เริ่มทำไปแล้ว (in_progress/done_by_worker/...) ไม่แตะสถานะ แก้แค่รายละเอียดอื่น
+      const preExecution = ['pending', 'assigned', 'failed_qc'].includes(s.status);
       await sb.from('process_steps').update({
         step_name: name,
         machine: machineVal,
         part_no: document.getElementById('es-partno').value.trim(),
         assigned_name: workerName || null,
-        status: workerName ? 'assigned' : (s.status === 'pending' ? 'pending' : s.status),
+        status: preExecution ? (workerName ? 'assigned' : 'pending') : s.status,
         time_per_piece: parseFloat(document.getElementById('es-time').value) || null,
         qty,
         notes: document.getElementById('es-notes').value,
