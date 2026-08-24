@@ -1154,12 +1154,17 @@ function filterProjectTable(tid) {
   const chReq = getChecked('req');
   const chStatus = getChecked('status');
   const chPriority = getChecked('priority');
+  const STATUS_GROUPS = { _pending: ['pending_eng','pending_executive','approved'], _inprogress: ['planning','assigning','in_progress'] };
+  const matchStatus = (r) => {
+    if (!chStatus.length) return true;
+    return chStatus.some(v => STATUS_GROUPS[v] ? STATUS_GROUPS[v].includes(r.status) : r.status === v);
+  };
 
   const filtered = all.filter(r =>
     (!q || (r.project_no||'').toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
     (!chType.length || chType.includes(r.type)) &&
     (!chReq.length || chReq.includes(r.requester_name)) &&
-    (!chStatus.length || chStatus.includes(r.status)) &&
+    matchStatus(r) &&
     (!chPriority.length || chPriority.includes(r.priority))
   );
   const body = document.getElementById(tid+'-body');
