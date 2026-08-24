@@ -1172,7 +1172,7 @@ function filterProjectTable(tid) {
   body.innerHTML = filtered.length ? filtered.map(r=>`<tr>
     <td><b>${esc(r.project_no||'-')}</b></td><td>${esc(r.name)}</td>
     <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td><td>${esc(r.requester_name||'-')}</td>
-    <td>${statusBadge(r.status)}</td>
+    <td>${projStatusBadge(r.status)}</td>
     <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
     <td>${fmtDate(r.confirmed_deadline)}</td>
     <td style="display:flex;gap:6px">
