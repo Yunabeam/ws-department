@@ -3866,6 +3866,17 @@ function toggleDrawing(val) {
   document.getElementById('sample-field').style.display = val === 'no' ? 'block' : 'none';
 }
 
+function onReqFileChange(input) {
+  const file = input.files[0];
+  const label = document.getElementById('req-file-label');
+  if (file) label.innerHTML = `📄 <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(2)} MB) <span style="color:#dc2626;cursor:pointer;margin-left:8px" onclick="clearReqFile()">✕ ลบ</span>`;
+}
+
+function clearReqFile() {
+  document.getElementById('req-file-input').value = '';
+  document.getElementById('req-file-label').textContent = 'คลิกเพื่อเลือกไฟล์ หรือลากมาวางที่นี่';
+}
+
 async function submitRequest() {
   const requesterName = document.getElementById('req-requester').value.trim();
   const name = document.getElementById('req-name').value.trim();
@@ -3889,6 +3900,22 @@ async function submitRequest() {
   };
   const { data, error } = await sb.from('projects').insert(payload).select().single();
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+
+  const fileInput = document.getElementById('req-file-input');
+  if (fileInput?.files[0]) {
+    const file = fileInput.files[0];
+    if (file.size > 10 * 1024 * 1024) { showToast('ไฟล์ใหญ่เกิน 10MB', 'error'); }
+    else {
+      const ext = file.name.split('.').pop();
+      const path = `${data.id}/${Date.now()}.${ext}`;
+      const { data: up, error: upErr } = await sb.storage.from('attachments').upload(path, file, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
+        await sb.from('projects').update({ attachment_url: urlData.publicUrl }).eq('id', data.id);
+      }
+    }
+  }
+
   await notifyRole('eng_manager', `📋 ใบคำร้องใหม่: ${data.project_no}`, `${name} จาก ${requesterName}`, data.id);
   localStorage.removeItem('req_draft');
   showToast(`ส่งใบคำร้อง ${data.project_no} แล้ว`, 'success'); navigateTo('my-requests');
