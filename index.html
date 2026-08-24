@@ -2513,7 +2513,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
 
   const stepRows = tasks.map(s => {
     const p = projMap[s.project_id];
-    const canUnassign = isSA && ['assigned','pending'].includes(s.status);
+    const canUnassign = isSA && !['confirmed','done_by_worker'].includes(s.status);
     return `<div class="step-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <b>${esc(p?.project_no || '-')} ${esc(p?.name || '')}</b>
