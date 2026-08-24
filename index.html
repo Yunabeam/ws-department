@@ -1249,6 +1249,12 @@ async function openProjectDetail(id) {
       <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
       <div class="detail-item"><div class="detail-label">จำนวนรวม</div><div class="detail-value">${p.qty} ชิ้น</div></div>
     </div>
+    ${p.attachment_url ? `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin:4px 0;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">📎</span>
+      <a href="${p.attachment_url}" target="_blank" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none">ดูไฟล์แนบ</a>
+      <span style="font-size:11px;color:var(--muted)">(คลิกเพื่อเปิด)</span>
+    </div>` : ''}
     ${p.part_details && p.part_details.length ? `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:4px 0">
       <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">รายละเอียด Part</div>
