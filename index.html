@@ -4160,8 +4160,29 @@ function timeAgo(d) {
   return `${days} วันที่แล้ว`;
 }
 
+const PROJ_STATUS_GROUP = {
+  pending_eng: 'pending', pending_executive: 'pending', approved: 'pending',
+  planning: 'inprogress', assigning: 'inprogress', in_progress: 'inprogress',
+  pending_qc: 'pending_qc', qc_pass: 'qc_pass', completed: 'completed', rejected: 'rejected'
+};
+const PROJ_STATUS_LABEL = {
+  pending: 'รออนุมัติ', inprogress: 'กำลังดำเนินการ',
+  pending_qc: 'รอตรวจ QC', qc_pass: 'QC ผ่าน', completed: 'เสร็จสิ้น', rejected: 'ปฏิเสธ'
+};
+const PROJ_STATUS_CSS = {
+  pending: 's-pending_eng', inprogress: 's-in_progress',
+  pending_qc: 's-pending_qc', qc_pass: 's-qc_pass', completed: 's-completed', rejected: 's-rejected'
+};
+
 function statusBadge(status) {
   return `<span class="status s-${status}">${STATUS_LABELS[status] || status}</span>`;
+}
+
+function projStatusBadge(status) {
+  const grp = PROJ_STATUS_GROUP[status] || status;
+  const label = PROJ_STATUS_LABEL[grp] || STATUS_LABELS[status] || status;
+  const css = PROJ_STATUS_CSS[grp] || `s-${status}`;
+  return `<span class="status ${css}">${label}</span>`;
 }
 
 // ============================================================
