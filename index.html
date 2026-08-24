@@ -2472,6 +2472,15 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
     </div>`;
 }
 
+async function unassignStep(stepId, workerName, dateStr) {
+  if (!confirm(`เอางานออกจาก ${workerName}?\nขั้นตอนจะกลับไปรอมอบหมายใหม่`)) return;
+  const { error } = await sb.from('process_steps').update({ assigned_name: null, assigned_to: null, status: 'pending', planned_start: null, started_at: null }).eq('id', stepId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('เอางานออกแล้ว', 'success');
+  closeModal();
+  openWorkerDayDetail(workerName, dateStr);
+}
+
 async function openWorkerDayDetail(workerName, dateStr) {
   const tasks = (window._wsSummarySteps || []).filter(s =>
     s.assigned_name === workerName && s.planned_start && dateInRange(dateStr, s.planned_start, s.planned_end));
