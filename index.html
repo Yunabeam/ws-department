@@ -909,7 +909,7 @@ function dashFilter(group, btn) {
   const filterMap = {
     all: () => true,
     pending: p => ['pending_eng','pending_executive'].includes(p.status),
-    inProgress: p => ['in_progress','planning','assigning'].includes(p.status),
+    inProgress: p => ['approved','in_progress','planning','assigning'].includes(p.status),
     pendingQC: p => p.status === 'pending_qc',
     done: p => p.status === 'completed',
     rejected: p => p.status === 'rejected',
@@ -922,7 +922,7 @@ async function showDashGroup(group, label) {
   const { data: all } = await sb.from('projects').select('*').order('created_at', { ascending: false });
   const filterMap = {
     pending: p => ['pending_eng','pending_executive'].includes(p.status),
-    inProgress: p => ['in_progress','planning','assigning'].includes(p.status),
+    inProgress: p => ['approved','in_progress','planning','assigning'].includes(p.status),
     pendingQC: p => p.status === 'pending_qc',
     qcPass: p => p.status === 'qc_pass',
     done: p => p.status === 'completed',
