@@ -1096,7 +1096,7 @@ function renderProjectTable(rows) {
     <td>${esc(r.name)}</td>
     <td>${r.type==='part'?'ชิ้นส่วน':'โปรเจค'}</td>
     <td>${esc(r.requester_name||'-')}</td>
-    <td>${statusBadge(r.status)}</td>
+    <td>${projStatusBadge(r.status)}</td>
     <td><span class="priority-${r.priority}">${PRIORITY_LABELS[r.priority]||'-'}</span></td>
     <td>${fmtDate(r.confirmed_deadline)}</td>
     <td style="display:flex;gap:6px">
