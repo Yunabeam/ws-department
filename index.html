@@ -844,7 +844,7 @@ async function renderDashboard(mc) {
   const p = projs || [], s = steps || [];
   const counts = {
     pending: p.filter(x => ['pending_eng','pending_executive'].includes(x.status)).length,
-    inProgress: p.filter(x => ['in_progress','planning','assigning'].includes(x.status)).length,
+    inProgress: p.filter(x => ['approved','in_progress','planning','assigning'].includes(x.status)).length,
     pendingQC: p.filter(x => x.status === 'pending_qc').length,
     qcPass: p.filter(x => x.status === 'qc_pass').length,
     done: p.filter(x => x.status === 'completed').length,
