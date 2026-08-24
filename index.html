@@ -3791,6 +3791,14 @@ async function renderCreateRequest(mc) {
         <label>หมายเหตุ</label>
         <textarea id="req-notes" placeholder="ข้อมูลเพิ่มเติม..." oninput="saveReqDraft()">${esc(draft.notes||'')}</textarea>
       </div>
+      <div class="form-group">
+        <label>แนบไฟล์ <span style="font-weight:400;color:var(--muted);font-size:12px">(PDF, รูปภาพ, ไม่เกิน 10MB)</span></label>
+        <div id="req-file-zone" onclick="document.getElementById('req-file-input').click()" style="border:2px dashed #cbd5e1;border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:.2s;color:var(--muted);font-size:13px" onmouseover="this.style.borderColor='var(--primary)';this.style.background='#f0fdf4'" onmouseout="this.style.borderColor='#cbd5e1';this.style.background=''">
+          <div style="font-size:28px;margin-bottom:4px">📎</div>
+          <div id="req-file-label">คลิกเพื่อเลือกไฟล์ หรือลากมาวางที่นี่</div>
+        </div>
+        <input type="file" id="req-file-input" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.xls,.doc,.docx" style="display:none" onchange="onReqFileChange(this)">
+      </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="submitRequest()">📤 ส่งใบคำร้อง</button>
         <button class="btn btn-ghost" onclick="clearReqDraft()">🗑️ ล้างข้อมูล</button>
