@@ -2480,8 +2480,9 @@ async function unassignStep(stepId, workerName, dateStr) {
   const { error } = await sb.from('process_steps').update({ assigned_name: null, assigned_to: null, status: 'pending', planned_start: null, started_at: null }).eq('id', stepId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('เอางานออกแล้ว', 'success');
-  closeModal();
-  openWorkerDayDetail(workerName, dateStr);
+  const mc = document.getElementById('main-content');
+  if (currentPage === 'ws-monitor') renderWSMonitor(mc);
+  else { closeModal(); openWorkerDayDetail(workerName, dateStr); }
 }
 
 async function openWorkerDayDetail(workerName, dateStr) {
