@@ -1154,7 +1154,7 @@ function filterProjectTable(tid) {
   const chReq = getChecked('req');
   const chStatus = getChecked('status');
   const chPriority = getChecked('priority');
-  const STATUS_GROUPS = { _pending: ['pending_eng','pending_executive','approved'], _inprogress: ['planning','assigning','in_progress'] };
+  const STATUS_GROUPS = { _pending: ['pending_eng','pending_executive'], _inprogress: ['approved','planning','assigning','in_progress'] };
   const matchStatus = (r) => {
     if (!chStatus.length) return true;
     return chStatus.some(v => STATUS_GROUPS[v] ? STATUS_GROUPS[v].includes(r.status) : r.status === v);
