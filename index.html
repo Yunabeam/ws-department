@@ -2876,12 +2876,14 @@ function toggleWSCard(id) {
 
 async function wsSendToInternalDept(stepId, projId, deptName) {
   await sb.from('process_steps').update({ assigned_name: deptName, status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
+  if (projId) await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId).in('status', ['approved','planning','assigning']);
   showToast(`บันทึกแล้ว — ส่งงานให้${deptName}แล้ว`, 'success');
   setTimeout(() => navigateTo('ws-status-plan'), 100);
 }
 
 async function wsSendToSupplier(stepId, projId) {
   await sb.from('process_steps').update({ assigned_name: 'จัดซื้อ', status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
+  if (projId) await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId).in('status', ['approved','planning','assigning']);
   showToast('บันทึกแล้ว — ส่งซัพพลายเออร์แล้ว', 'success');
   setTimeout(() => navigateTo('ws-status-plan'), 100);
 }
