@@ -2501,9 +2501,8 @@ async function openWorkerDayDetail(workerName, dateStr) {
     sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed'])
   ]);
   const tasks = (freshSteps || []).filter(s => {
-    if (!s.planned_start) return false;
-    // งานค้าง: planned_start <= dateStr และยังไม่เสร็จ
-    if (!s.planned_end && s.planned_start <= dateStr && ['assigned','in_progress'].includes(s.status)) return true;
+    if (!s.planned_start) return ['assigned','in_progress'].includes(s.status);
+    if (['assigned','in_progress'].includes(s.status) && s.planned_start <= dateStr) return true;
     return dateInRange(dateStr, s.planned_start, s.planned_end);
   });
   const adhocs = (freshAdhocs || []).filter(t => {
