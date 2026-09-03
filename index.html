@@ -3692,14 +3692,12 @@ async function completeAdhocTask(id) {
 }
 
 async function startTask(stepId) {
-  const { data: step } = await sb.from('process_steps').select('assigned_name').eq('id', stepId).single();
+  const { data: step } = await sb.from('process_steps').select('assigned_name,project_id').eq('id', stepId).single();
   if (!currentUser?.is_super_admin && step?.assigned_name && step.assigned_name !== currentProfile?.full_name) {
     showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return;
   }
-  await sb.from('process_steps').update({
-    status: 'in_progress',
-    started_at: new Date().toISOString(),
-  }).eq('id', stepId);
+  await sb.from('process_steps').update({ status: 'in_progress', started_at: new Date().toISOString() }).eq('id', stepId);
+  if (step?.project_id) await sb.from('projects').update({ status: 'in_progress' }).eq('id', step.project_id).in('status', ['approved','planning','assigning']);
   showToast('เริ่มงานแล้ว', 'info'); navigateTo('my-tasks');
 }
 
