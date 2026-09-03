@@ -2497,7 +2497,7 @@ async function unassignStep(stepId, workerName, dateStr) {
 async function openWorkerDayDetail(workerName, dateStr) {
   // ดึงสดจาก Supabase เสมอ เพราะ cache อาจไม่ถูก set (เช่นเปิด Monitor โดยตรง)
   const [{ data: freshSteps }, { data: freshAdhocs }] = await Promise.all([
-    sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', workerName).not('planned_start','is',null),
+    sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', workerName),
     sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed'])
   ]);
   const tasks = (freshSteps || []).filter(s => {
