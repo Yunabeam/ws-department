@@ -2430,7 +2430,7 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
   const workerData = workers.map(w => {
     const tasks = allStepsFlat.filter(s => {
       if (s.assigned_name !== w) return false;
-      if (!s.planned_start) return ['assigned','in_progress'].includes(s.status);
+      if (!s.planned_start) return s.status === 'in_progress';
       if (['assigned','in_progress'].includes(s.status) && s.planned_start <= today) return true;
       return dateInRange(today, s.planned_start, s.planned_end);
     });
