@@ -2486,10 +2486,18 @@ async function unassignStep(stepId, workerName, dateStr) {
 }
 
 async function openWorkerDayDetail(workerName, dateStr) {
-  const tasks = (window._wsSummarySteps || []).filter(s =>
-    s.assigned_name === workerName && s.planned_start && dateInRange(dateStr, s.planned_start, s.planned_end));
-  const adhocs = (window._wsAdhocTasks || []).filter(t => {
-    if (t.assigned_name !== workerName) return false;
+  // ดึงสดจาก Supabase เสมอ เพราะ cache อาจไม่ถูก set (เช่นเปิด Monitor โดยตรง)
+  const [{ data: freshSteps }, { data: freshAdhocs }] = await Promise.all([
+    sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', workerName).not('planned_start','is',null),
+    sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed'])
+  ]);
+  const tasks = (freshSteps || []).filter(s => {
+    if (!s.planned_start) return false;
+    // งานค้าง: planned_start <= dateStr และยังไม่เสร็จ
+    if (!s.planned_end && s.planned_start <= dateStr && ['assigned','in_progress'].includes(s.status)) return true;
+    return dateInRange(dateStr, s.planned_start, s.planned_end);
+  });
+  const adhocs = (freshAdhocs || []).filter(t => {
     const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
     if (!createdDate || createdDate > dateStr) return false;
     if (['assigned','in_progress'].includes(t.status)) return true;
