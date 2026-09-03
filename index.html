@@ -1658,7 +1658,9 @@ async function renderWSMonitor(mc, selDate) {
     sb.from('worker_self_logs').select('*').eq('log_date', viewDate).order('created_at'),
   ]);
   const stepIds = new Set((steps||[]).map(s => s.id));
-  const mergedSteps = [...(steps||[]), ...(stepsOrig||[]).filter(s => !stepIds.has(s.id))];
+  const origFiltered = (stepsOrig||[]).filter(s => !stepIds.has(s.id));
+  const noDateFiltered = (stepsNoDate||[]).filter(s => !stepIds.has(s.id) && !origFiltered.find(o => o.id === s.id));
+  const mergedSteps = [...(steps||[]), ...origFiltered, ...noDateFiltered];
 
   const allSteps = mergedSteps;
 
