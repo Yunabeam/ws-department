@@ -2379,7 +2379,12 @@ async function renderWSStatusPlan(mc) {
 
   const { data: adhocTasks } = await sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']);
   // ภาพรวมช่างวันนี้ ต้องไม่ผูกกับสถานะโปรเจค (โปรเจคที่ QC ผ่าน/เสร็จแล้วยังต้องนับงานที่ทำวันนั้นได้)
-  const { data: summarySteps } = await sb.from('process_steps').select('*').not('planned_start', 'is', null);
+  // รวมงานที่ planned_start = null แต่ถูก assign แล้ว (ยังไม่วางแผนวัน)
+  const [{ data: summaryStepsSched }, { data: summaryStepsActive }] = await Promise.all([
+    sb.from('process_steps').select('*').not('planned_start', 'is', null),
+    sb.from('process_steps').select('*').is('planned_start', null).in('status', ['assigned','in_progress'])
+  ]);
+  const summarySteps = [...(summaryStepsSched||[]), ...(summaryStepsActive||[])];
 
   window._wsProjects = projects;
   window._wsStepMap = stepMap;
