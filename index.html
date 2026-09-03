@@ -2501,7 +2501,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
     sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed'])
   ]);
   const tasks = (freshSteps || []).filter(s => {
-    if (!s.planned_start) return ['assigned','in_progress'].includes(s.status);
+    if (!s.planned_start) return s.status === 'in_progress';
     if (['assigned','in_progress'].includes(s.status) && s.planned_start <= dateStr) return true;
     return dateInRange(dateStr, s.planned_start, s.planned_end);
   });
