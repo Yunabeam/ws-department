@@ -1249,6 +1249,9 @@ async function openProjectDetail(id) {
       <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
       <div class="detail-item"><div class="detail-label">จำนวนรวม</div><div class="detail-value">${p.qty} ชิ้น</div></div>
     </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ใช้กับเครื่อง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
+    </div>
     ${p.attachment_url ? `
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin:4px 0;display:flex;align-items:center;gap:10px">
       <span style="font-size:20px">📎</span>
