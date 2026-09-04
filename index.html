@@ -3456,7 +3456,7 @@ async function confirmStep(stepId, projId, hasUrgentTask = false, urgentNote = '
   const { data: p } = await sb.from('projects').select('*').eq('id', projId).single();
   const allDone = allSteps && allSteps.every(s => s.status === 'confirmed' || s.id === stepId);
   if (allDone) {
-    await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+    await sb.from('projects').update({ status: 'pending_qc' }).eq('id', projId);
     await notifyRole('eng_manager', `🎉 ขั้นตอนทั้งหมดเสร็จแล้ว: ${p.project_no}`, 'พร้อมส่ง QC', projId);
   } else {
     const confirmed = allSteps.filter(s => s.status === 'confirmed' || s.id === stepId);
