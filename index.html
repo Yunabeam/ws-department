@@ -2194,12 +2194,12 @@ async function renderKPIReport(mc, selMonth) {
 
   const kpiData = workers.map(w => {
     const allDone   = (confirmedSteps||[]).filter(s => s.assigned_name === w);
-    const allFails  = (failedSteps||[]).filter(s => s.assigned_name === w);
+    const allFails  = (failedSteps||[]).filter(s => s.process_steps?.assigned_name === w);
     const allAdhocDone = (confirmedAdhocs||[]).filter(t => t.assigned_name === w);
     // Filter by selected month
     const myDone    = allDone.filter(s => s.worker_confirmed_at?.startsWith(month));
     const myAdhocDone = allAdhocDone.filter(t => (t.completed_at||t.created_at)?.startsWith(month));
-    const myFails   = allFails.filter(s => s.updated_at?.startsWith(month));
+    const myFails   = allFails.filter(s => s.created_at?.startsWith(month));
     const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline && !s.notes?.includes('[งานแทรก]'));
     const lateSelf  = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
     const urgentSteps = myDone.filter(s => s.notes?.includes('[งานแทรก]'));
