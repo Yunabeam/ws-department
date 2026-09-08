@@ -2184,19 +2184,22 @@ async function renderKPIReport(mc, selMonth) {
   const kpiData = workers.map(w => {
     const allDone   = (confirmedSteps||[]).filter(s => s.assigned_name === w);
     const allFails  = (failedSteps||[]).filter(s => s.assigned_name === w);
+    const allAdhocDone = (confirmedAdhocs||[]).filter(t => t.assigned_name === w);
     // Filter by selected month
     const myDone    = allDone.filter(s => s.worker_confirmed_at?.startsWith(month));
+    const myAdhocDone = allAdhocDone.filter(t => (t.completed_at||t.created_at)?.startsWith(month));
     const myFails   = allFails.filter(s => s.updated_at?.startsWith(month));
     const late      = myDone.filter(s => s.worker_confirmed_at && s.projects?.confirmed_deadline && s.worker_confirmed_at.substring(0,10) > s.projects.confirmed_deadline && !s.notes?.includes('[งานแทรก]'));
     const lateSelf  = myDone.filter(s => s.notes?.includes('[ทำไม่ทันเอง]'));
     const urgentSteps = myDone.filter(s => s.notes?.includes('[งานแทรก]'));
-    const monthHrs  = myDone.reduce((sum,s) => sum + getStepHours(s), 0);
+    const monthHrs  = myDone.reduce((sum,s) => sum + getStepHours(s), 0) + myAdhocDone.reduce((sum,t) => sum + (t.estimated_hours||0), 0);
     const score     = Math.max(0, 100 - late.length*W_LATE - myFails.length*W_QC - lateSelf.length*W_SELF);
     const grade     = score>=90?'A':score>=80?'B':score>=70?'C':score>=60?'D':'F';
-    const lastDone  = allDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length;
+    const lastDone  = allDone.filter(s => s.worker_confirmed_at?.startsWith(lastMonth)).length + allAdhocDone.filter(t => (t.completed_at||t.created_at)?.startsWith(lastMonth)).length;
     const workloadPct = TARGET_HRS > 0 ? Math.min(Math.round(monthHrs/TARGET_HRS*100),999) : 0;
     const workloadColor = workloadPct>110?'#dc2626':workloadPct>=80?'#16a34a':'#d97706';
-    return { w, done: myDone.length, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
+    const totalDone = myDone.length + myAdhocDone.length;
+    return { w, done: totalDone, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
   });
 
   // Manager KPI (month-based)
