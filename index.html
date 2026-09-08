@@ -2268,7 +2268,7 @@ async function renderKPIReport(mc, selMonth) {
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>ชื่อ</th><th>งานเสร็จ</th><th>QC Fail</th><th>ล่าช้า</th><th>ทำไม่ทันเอง</th><th>งานแทรก</th><th>ชม.เดือนนี้</th><th>Workload</th><th>คะแนน</th></tr></thead>
-        <tbody>${(window._kpiFailsCache = kpiData.map(k => k.allFails), window._kpiWorkerCache = kpiData.map(k => k.w), kpiData.map((k, kpiIdx) => `<tr>
+        <tbody>${kpiData.map((k, kpiIdx) => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
           <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'};${k.fails>0?'cursor:pointer;text-decoration:underline;':''}" ${k.fails>0?`onclick="showQCFailDetail(${kpiIdx})"`:''} data-kpi-idx="${kpiIdx}">${k.fails}</span></td>
