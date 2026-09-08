@@ -2176,7 +2176,7 @@ async function renderKPIReport(mc, selMonth) {
 
   const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }, { data: confirmedAdhocs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed'),
-    sb.from('kpi_records').select('*,process_steps(assigned_name,seq,step_name)').eq('record_type','qc_fail'),
+    sb.from('kpi_records').select('*,process_steps(assigned_name,seq,step_name,project_id),projects(project_no,name)').eq('record_type','qc_fail'),
     sb.from('projects').select('id,status,confirmed_deadline').not('status','in','("pending_eng","pending_executive","rejected")'),
     sb.from('adhoc_tasks').select('*').eq('status','confirmed'),
   ]);
