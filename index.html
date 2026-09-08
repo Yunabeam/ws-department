@@ -2269,7 +2269,7 @@ async function renderKPIReport(mc, selMonth) {
         <tbody>${kpiData.map(k => `<tr>
           <td><b>${esc(k.w)}</b></td>
           <td>${k.done}</td>
-          <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'};${k.fails>0?'cursor:pointer;text-decoration:underline;':''}" ${k.fails>0?`onclick="showQCFailDetail('${esc(k.w)}',${JSON.stringify(k.allFails.map(s=>({proj:s.projects?.project_no||'-',step:s.process_steps?.step_name||'-',notes:s.notes||'-',date:s.created_at?.substring(0,10)||''})))})"`:''}>${k.fails}</span></td>
+          <td><span style="color:${k.fails>0?'#dc2626':'#16a34a'};${k.fails>0?'cursor:pointer;text-decoration:underline;':''}" ${k.fails>0?`onclick="showQCFailDetail(${kpiIdx})"`:''} data-kpi-idx="${kpiIdx}">${k.fails}</span></td>
           <td><span style="color:${k.late>0?'#d97706':'#16a34a'}">${k.late}</span></td>
           <td><span style="color:${k.lateSelf>0?'#dc2626':'#16a34a'}">${k.lateSelf}</span></td>
           <td><span style="color:${k.urgentSteps.length>0?'var(--amber)':'#16a34a'};cursor:pointer;font-weight:600" onclick="showUrgentDetail('${esc(k.w)}',${JSON.stringify(k.urgentSteps.map(s=>({n:s.step_name,note:s.notes||''})))})">${k.urgentSteps.length} ครั้ง ℹ️</span></td>
