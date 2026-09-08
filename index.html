@@ -836,10 +836,11 @@ function setupRealtime() {
 // DASHBOARD (eng_manager)
 // ============================================================
 async function renderDashboard(mc) {
-  const [{ data: projs }, { data: steps }, { data: allActive }] = await Promise.all([
+  const [{ data: projs }, { data: steps }, { data: allActive }, { data: adhocDone }] = await Promise.all([
     sb.from('projects').select('status,priority'),
     sb.from('process_steps').select('status'),
     sb.from('projects').select('*').not('status', 'in', '("completed","rejected")').not('confirmed_deadline', 'is', null),
+    sb.from('adhoc_tasks').select('id').eq('status', 'confirmed'),
   ]);
   const p = projs || [], s = steps || [];
   const counts = {
@@ -847,7 +848,7 @@ async function renderDashboard(mc) {
     inProgress: p.filter(x => ['approved','in_progress','planning','assigning'].includes(x.status)).length,
     pendingQC: p.filter(x => x.status === 'pending_qc').length,
     qcPass: p.filter(x => x.status === 'qc_pass').length,
-    done: p.filter(x => x.status === 'completed').length,
+    done: p.filter(x => x.status === 'completed').length + (adhocDone||[]).length,
     rejected: p.filter(x => x.status === 'rejected').length,
     urgent: p.filter(x => x.priority === 'very_urgent' && !['completed','rejected'].includes(x.status)).length,
   };
