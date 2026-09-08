@@ -3647,6 +3647,21 @@ function showUrgentDetail(workerName, steps) {
   `, [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
 }
 
+function showQCFailDetail(workerName, fails) {
+  const rows = fails.map(f => `<tr>
+    <td>${esc(f.proj)}</td>
+    <td>${esc(f.step)}</td>
+    <td style="color:#dc2626">${esc(f.notes)}</td>
+    <td style="color:var(--muted)">${f.date}</td>
+  </tr>`).join('');
+  openModal(`❌ QC Fail ของ ${esc(workerName)}`, `
+    <div class="table-wrap"><table>
+      <thead><tr><th>โปรเจค</th><th>ขั้นตอน</th><th>เหตุผล</th><th>วันที่</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  `);
+}
+
 function openAdhocTaskModal(preselected = '') {
   const workers = getWorkerList();
   openModal('➕ สั่งงานเพิ่ม', `
