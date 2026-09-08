@@ -2210,7 +2210,7 @@ async function renderKPIReport(mc, selMonth) {
     const workloadPct = TARGET_HRS > 0 ? Math.min(Math.round(monthHrs/TARGET_HRS*100),999) : 0;
     const workloadColor = workloadPct>110?'#dc2626':workloadPct>=80?'#16a34a':'#d97706';
     const totalDone = myDone.length + myAdhocDone.length;
-    return { w, done: totalDone, fails: myFails.length, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
+    return { w, done: totalDone, fails: myFails.length, allFails: myFails, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
   });
 
   // Manager KPI (month-based)
