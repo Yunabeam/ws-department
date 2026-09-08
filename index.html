@@ -3647,7 +3647,16 @@ function showUrgentDetail(workerName, steps) {
   `, [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
 }
 
-function showQCFailDetail(workerName, fails) {
+function showQCFailDetail(idx) {
+  const cache = window._kpiFailsCache || [];
+  const rawFails = cache[idx] || [];
+  const workerName = (window._kpiFailsCache && window._kpiWorkerCache) ? window._kpiWorkerCache[idx] : '';
+  const fails = rawFails.map(s => ({
+    proj: s.projects?.project_no || '-',
+    step: s.process_steps?.step_name || '-',
+    notes: s.notes || '-',
+    date: s.created_at?.substring(0,10) || ''
+  }));
   const rows = fails.map(f => `<tr>
     <td>${esc(f.proj)}</td>
     <td>${esc(f.step)}</td>
@@ -3657,7 +3666,7 @@ function showQCFailDetail(workerName, fails) {
   openModal(`❌ QC Fail ของ ${esc(workerName)}`, `
     <div class="table-wrap"><table>
       <thead><tr><th>โปรเจค</th><th>ขั้นตอน</th><th>เหตุผล</th><th>วันที่</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">ไม่มีข้อมูล</td></tr>'}</tbody>
     </table></div>
   `);
 }
