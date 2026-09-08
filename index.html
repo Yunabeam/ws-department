@@ -920,7 +920,10 @@ function dashFilter(group, btn) {
 }
 
 async function showDashGroup(group, label) {
-  const { data: all } = await sb.from('projects').select('*').order('created_at', { ascending: false });
+  const fetches = [sb.from('projects').select('*').order('created_at', { ascending: false })];
+  if (group === 'done') fetches.push(sb.from('adhoc_tasks').select('*').eq('status','confirmed').order('created_at', { ascending: false }));
+  const [{ data: all }, adhocRes] = await Promise.all(fetches);
+  const adhocs = adhocRes?.data || [];
   const filterMap = {
     pending: p => ['pending_eng','pending_executive'].includes(p.status),
     inProgress: p => ['approved','in_progress','planning','assigning'].includes(p.status),
@@ -931,14 +934,22 @@ async function showDashGroup(group, label) {
     urgent: p => p.priority === 'very_urgent' && !['completed','rejected'].includes(p.status),
   };
   const list = (all || []).filter(filterMap[group] || (() => false));
-  openModal(label, list.length === 0
+  const projHtml = list.map(p => `
+    <div style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:#fff">
+      <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(p.project_no||'—')} · ${esc(p.group_no||'—')}</div>
+      <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(p.name)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">ผู้ขอ: ${esc(p.requester_name||'-')} · Deadline: ${fmtDate(p.confirmed_deadline)} · <span class="status ${p.status?'s-'+p.status:''}" style="font-size:11px">${STATUS_LABELS[p.status]||p.status}</span></div>
+    </div>`).join('');
+  const adhocHtml = adhocs.map(t => `
+    <div style="padding:10px 14px;border:1px solid #bbf7d0;border-radius:8px;background:#f0fdf4">
+      <div style="font-size:11px;color:#16a34a;font-weight:600">ซัพพอร์ต · ${esc(t.assigned_name||'-')}</div>
+      <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(t.task_name||'-')}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${t.estimated_hours ? t.estimated_hours+' ชม.' : ''} · ${fmtDate((t.completed_at||t.created_at)?.substring(0,10))}</div>
+    </div>`).join('');
+  const combined = projHtml + adhocHtml;
+  openModal(label, !combined
     ? `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในหมวดนี้</div>`
-    : `<div style="display:flex;flex-direction:column;gap:8px">${list.map(p => `
-      <div style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:#fff">
-        <div style="font-size:11px;color:#185fa5;font-weight:600">${esc(p.project_no||'—')} · ${esc(p.group_no||'—')}</div>
-        <div style="font-size:14px;font-weight:700;margin-top:2px">${esc(p.name)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">ผู้ขอ: ${esc(p.requester_name||'-')} · Deadline: ${fmtDate(p.confirmed_deadline)} · <span class="status ${p.status?'s-'+p.status:''}" style="font-size:11px">${STATUS_LABELS[p.status]||p.status}</span></div>
-      </div>`).join('')}</div>`,
+    : `<div style="display:flex;flex-direction:column;gap:8px">${combined}</div>`,
   [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
 }
 
