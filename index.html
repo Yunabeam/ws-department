@@ -950,7 +950,7 @@ async function showDashGroup(group, label) {
   openModal(label, !combined
     ? `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในหมวดนี้</div>`
     : `<div style="display:flex;flex-direction:column;gap:8px">${combined}</div>`,
-  [{ label: 'ปิด', cls: 'btn-ghost', action: closeModal }]);
+  );
 }
 
 async function renderPendingApprovals(mc) {
