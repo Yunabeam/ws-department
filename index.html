@@ -2163,10 +2163,11 @@ async function renderKPIReport(mc, selMonth) {
   const W_SELF    = cfg.w_self    ?? 3;
   const TARGET_HRS = cfg.target_hrs ?? 160;
 
-  const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }] = await Promise.all([
+  const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }, { data: confirmedAdhocs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed'),
     sb.from('process_steps').select('*').eq('status','failed_qc'),
     sb.from('projects').select('id,status,confirmed_deadline').not('status','in','("pending_eng","pending_executive","rejected")'),
+    sb.from('adhoc_tasks').select('*').eq('status','confirmed'),
   ]);
 
   const gradeColor = g => g==='A'?'#16a34a':g==='B'?'#0d9488':g==='C'?'#d97706':g==='D'?'#ea580c':'#dc2626';
