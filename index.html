@@ -2218,7 +2218,7 @@ async function renderKPIReport(mc, selMonth) {
   const lateProjects = (allProjects||[]).filter(p => p.confirmed_deadline && p.confirmed_deadline < today && p.status !== 'completed');
   const completedAll = (allProjects||[]).filter(p => p.status==='completed');
   const deadlineRate = completedAll.length ? Math.round((completedAll.length - (completedAll.filter(p=>p.confirmed_deadline && p.confirmed_deadline < today).length)) / Math.max(completedAll.length,1) * 100) : 100;
-  const totalQCFails = (failedSteps||[]).filter(s => s.updated_at?.startsWith(month)).length;
+  const totalQCFails = (failedSteps||[]).filter(s => s.created_at?.startsWith(month)).length;
   const mgScore = Math.max(0, Math.round(deadlineRate - totalQCFails*5 - lateProjects.length*3));
   const mgGrade = mgScore>=90?'A':mgScore>=80?'B':mgScore>=70?'C':mgScore>=60?'D':'F';
 
