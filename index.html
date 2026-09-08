@@ -2221,6 +2221,8 @@ async function renderKPIReport(mc, selMonth) {
   const totalQCFails = (failedSteps||[]).filter(s => s.created_at?.startsWith(month)).length;
   const mgScore = Math.max(0, Math.round(deadlineRate - totalQCFails*5 - lateProjects.length*3));
   const mgGrade = mgScore>=90?'A':mgScore>=80?'B':mgScore>=70?'C':mgScore>=60?'D':'F';
+  window._kpiFailsCache = kpiData.map(k => k.allFails);
+  window._kpiWorkerCache = kpiData.map(k => k.w);
 
   mc.innerHTML = `
     <div class="section-header">
