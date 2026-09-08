@@ -4115,7 +4115,7 @@ async function submitQC(projId, p) {
     await sb.from('process_steps').update({ status: 'failed_qc' }).eq('id', failedStepId);
     await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
     if (failStep) {
-      await sb.from('kpi_records').insert({ worker_id: failStep.assigned_to, project_id: projId, step_id: failedStepId, record_type: 'qc_fail', notes });
+      await sb.from('kpi_records').insert({ worker_id: failStep.assigned_to, assigned_name_snapshot: failStep.assigned_name, project_id: projId, step_id: failedStepId, record_type: 'qc_fail', notes });
       await notify(failStep.assigned_to, `⚠️ QC ไม่ผ่าน - ต้องแก้ไข: ${p.project_no}`, `ขั้นตอน ${failStep.seq}: ${failStep.step_name} - ${notes}`, projId);
     }
     await notifyRole('eng_manager', `❌ QC ไม่ผ่าน: ${p.project_no}`, `ขั้นตอน ${failStep?.seq||''}: ${notes}`, projId);
