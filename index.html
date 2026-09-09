@@ -3462,7 +3462,7 @@ function openConfirmStepModal(stepId, projId) {
       </div>
     </div>
   `, [
-    { label: 'ยืนยัน', cls: 'btn-green', action: () => confirmStep(stepId, projId, document.getElementById('chk-urgent-task')?.checked, document.getElementById('urgent-note-input')?.value?.trim()) },
+    { label: 'ยืนยัน', cls: 'btn-green', action: () => { closeModal(); confirmStep(stepId, projId, document.getElementById('chk-urgent-task')?.checked, document.getElementById('urgent-note-input')?.value?.trim()); } },
     { label: 'ยกเลิก', cls: 'btn-ghost', action: closeModal },
   ]);
 }
