@@ -3792,10 +3792,11 @@ async function submitCompleteTask(stepId, projId) {
 // ============================================================
 async function renderTaskHistory(mc) {
   const name = currentProfile.full_name;
-  const [{ data: steps }, { data: adhocs }] = await Promise.all([
-    sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false }),
-    sb.from('adhoc_tasks').select('*').eq('assigned_name', name).eq('status','confirmed').order('completed_at', { ascending: false }),
-  ]);
+  const isAdmin = ['ws_manager','eng_manager','executive'].includes(currentProfile.role);
+  let stepsQ = sb.from('process_steps').select('*,projects(project_no,name)').in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false });
+  let adhocQ = sb.from('adhoc_tasks').select('*').eq('status','confirmed').order('completed_at', { ascending: false });
+  if (!isAdmin) { stepsQ = stepsQ.eq('assigned_name', name); adhocQ = adhocQ.eq('assigned_name', name); }
+  const [{ data: steps }, { data: adhocs }] = await Promise.all([stepsQ, adhocQ]);
   const stepRows = (steps||[]).map(s => ({
     _type: 'step',
     proj: s.projects?.project_no || '-',
