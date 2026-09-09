@@ -3832,7 +3832,7 @@ async function renderTaskHistory(mc) {
   }));
   const allRows = [...stepRows, ...adhocRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   mc.innerHTML = `
-    <div class="section-header"><div class="section-title">📜 ประวัติงาน</div></div>
+    <div class="section-header"><div class="section-title">📜 ประวัติงาน${!isWorkerName ? ` — ${esc(name)}` : ''}</div></div>
     <div class="card">
       ${allRows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
       <div class="table-wrap"><table>
