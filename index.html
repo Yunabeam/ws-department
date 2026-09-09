@@ -3480,6 +3480,9 @@ async function confirmStep(stepId, projId, hasUrgentTask = false, urgentNote = '
     await sb.from('projects').update({ status: 'pending_qc' }).eq('id', projId);
     await notifyRole('eng_manager', `🎉 ขั้นตอนทั้งหมดเสร็จแล้ว: ${p.project_no}`, 'พร้อมส่ง QC', projId);
   } else {
+    if (!['in_progress'].includes(p.status)) {
+      await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
+    }
     const confirmed = allSteps.filter(s => s.status === 'confirmed' || s.id === stepId);
     const nextStep = allSteps.find(s => !confirmed.find(c => c.id === s.id));
     if (nextStep && nextStep.assigned_to) {
