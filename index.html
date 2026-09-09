@@ -3798,7 +3798,7 @@ async function renderTaskHistory(mc) {
   if (!isAdmin) { stepsQ = stepsQ.eq('assigned_name', name); adhocQ = adhocQ.eq('assigned_name', name); }
   const [{ data: steps }, { data: adhocs }] = await Promise.all([stepsQ, adhocQ]);
   const stepRows = (steps||[]).map(s => ({
-    _type: 'step',
+    worker: s.assigned_name || '-',
     proj: s.projects?.project_no || '-',
     projName: s.projects?.name || '-',
     seq: s.seq,
@@ -3807,7 +3807,7 @@ async function renderTaskHistory(mc) {
     date: s.manager_confirmed_at || s.completed_at || s.updated_at,
   }));
   const adhocRows = (adhocs||[]).map(t => ({
-    _type: 'adhoc',
+    worker: t.assigned_name || '-',
     proj: 'ซัพพอร์ต',
     projName: '',
     seq: '-',
@@ -3821,9 +3821,10 @@ async function renderTaskHistory(mc) {
     <div class="card">
       ${allRows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
+        <thead><tr>${isAdmin?'<th>ช่าง</th>':''}<th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
         <tbody>${allRows.map(r => `
           <tr>
+            ${isAdmin?`<td>${esc(r.worker)}</td>`:''}
             <td><b>${esc(r.proj)}</b>${r.projName?`<br><small>${esc(r.projName)}</small>`:''}</td>
             <td>${r.seq}</td>
             <td>${esc(r.name)}</td>
