@@ -3836,10 +3836,9 @@ async function renderTaskHistory(mc) {
     <div class="card">
       ${allRows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr>${isAdmin?'<th>ช่าง</th>':''}<th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
+        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
         <tbody>${allRows.map(r => `
           <tr>
-            ${isAdmin?`<td>${esc(r.worker)}</td>`:''}
             <td><b>${esc(r.proj)}</b>${r.projName?`<br><small>${esc(r.projName)}</small>`:''}</td>
             <td>${r.seq}</td>
             <td>${esc(r.name)}</td>
