@@ -3791,20 +3791,43 @@ async function submitCompleteTask(stepId, projId) {
 // WS WORKER - TASK HISTORY
 // ============================================================
 async function renderTaskHistory(mc) {
-  const { data: steps } = await sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', currentProfile.full_name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false });
+  const name = currentProfile.full_name;
+  const [{ data: steps }, { data: adhocs }] = await Promise.all([
+    sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false }),
+    sb.from('adhoc_tasks').select('*').eq('assigned_name', name).eq('status','confirmed').order('completed_at', { ascending: false }),
+  ]);
+  const stepRows = (steps||[]).map(s => ({
+    _type: 'step',
+    proj: s.projects?.project_no || '-',
+    projName: s.projects?.name || '-',
+    seq: s.seq,
+    name: s.step_name,
+    status: s.status,
+    date: s.manager_confirmed_at || s.completed_at || s.updated_at,
+  }));
+  const adhocRows = (adhocs||[]).map(t => ({
+    _type: 'adhoc',
+    proj: 'ซัพพอร์ต',
+    projName: '',
+    seq: '-',
+    name: t.task_name,
+    status: 'confirmed',
+    date: t.completed_at || t.updated_at,
+  }));
+  const allRows = [...stepRows, ...adhocRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📜 ประวัติงาน</div></div>
     <div class="card">
-      ${(steps||[]).length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
+      ${allRows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
-        <tbody>${(steps||[]).map(s => `
+        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
+        <tbody>${allRows.map(r => `
           <tr>
-            <td><b>${esc(s.projects?.project_no||'-')}</b><br><small>${esc(s.projects?.name||'-')}</small></td>
-            <td>${s.seq}</td>
-            <td>${esc(s.step_name)}</td>
-            <td>${statusBadge(s.status)}</td>
-            <td>${fmtDate(s.manager_confirmed_at)}</td>
+            <td><b>${esc(r.proj)}</b>${r.projName?`<br><small>${esc(r.projName)}</small>`:''}</td>
+            <td>${r.seq}</td>
+            <td>${esc(r.name)}</td>
+            <td>${statusBadge(r.status)}</td>
+            <td>${fmtDate(r.date?.substring(0,10))}</td>
           </tr>`).join('')}
         </tbody>
       </table></div>`}
