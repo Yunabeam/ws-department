@@ -1734,10 +1734,10 @@ async function renderWSMonitor(mc, selDate) {
   }
   function fmtMins(m) {
     if (!m && m !== 0) return '-';
-    const absM = Math.abs(m);
+    const absM = Math.round(Math.abs(m) * 100) / 100;
     const d = Math.floor(absM / 1440);
     const h = Math.floor((absM % 1440) / 60);
-    const mn = absM % 60;
+    const mn = Math.round((absM % 60) * 100) / 100;
     const parts = [];
     if (d > 0) parts.push(`${d} วัน`);
     if (h > 0) parts.push(`${h} ชม.`);
