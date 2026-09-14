@@ -1296,6 +1296,35 @@ async function openProjectDetail(id) {
   `, canSendQC ? [{ label: '🔍 ส่ง QC', cls: 'btn-primary', action: () => sendToQC(p.id) }] : []);
 }
 
+function openExtendDeadlineModal(projId, currentDeadline, projectNo) {
+  openModal(`📅 ขยาย Deadline — ${esc(projectNo)}`, `
+    <div style="margin-bottom:12px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Deadline ปัจจุบัน</div>
+      <div style="font-size:15px;font-weight:600">${fmtDate(currentDeadline) || '-'}</div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">Deadline ใหม่ *</label>
+      <input type="date" id="extend-deadline-date" value="${currentDeadline||''}" min="${new Date().toISOString().substring(0,10)}" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px">
+    </div>
+    <div>
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">เหตุผล *</label>
+      <textarea id="extend-deadline-reason" rows="3" placeholder="เช่น วัสดุล่าช้า, ปรับสเปค..." style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;resize:vertical"></textarea>
+    </div>
+  `, [
+    { label: 'บันทึก', cls: 'btn-primary', action: async () => {
+      const newDate = document.getElementById('extend-deadline-date').value;
+      const reason = document.getElementById('extend-deadline-reason').value.trim();
+      if (!newDate) { showToast('กรุณาเลือก Deadline ใหม่', 'error'); return; }
+      if (!reason) { showToast('กรุณาใส่เหตุผล', 'error'); return; }
+      closeModal();
+      await sb.from('projects').update({ confirmed_deadline: newDate }).eq('id', projId);
+      await sb.from('project_logs').insert({ project_id: projId, action: 'extend_deadline', note: `ขยาย Deadline เป็น ${newDate} — ${reason}`, created_by: currentProfile.id }).catch(()=>{});
+      showToast('ขยาย Deadline แล้ว', 'success');
+      navigateTo('all-projects');
+    }},
+  ]);
+}
+
 async function sendToQC(id) {
   const { data: p } = await sb.from('projects').select('*').eq('id', id).single();
   await sb.from('projects').update({ status: 'pending_qc' }).eq('id', id);
