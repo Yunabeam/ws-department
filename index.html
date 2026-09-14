@@ -1258,7 +1258,7 @@ async function openProjectDetail(id) {
       <div class="detail-item"><div class="detail-label">แผนก</div><div class="detail-value">${esc(p.requester_dept||'-')}</div></div>
     </div>
     <div class="detail-row">
-      <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value">${fmtDate(p.confirmed_deadline)}</div></div>
+      <div class="detail-item"><div class="detail-label">Deadline</div><div class="detail-value" style="display:flex;align-items:center;gap:8px">${fmtDate(p.confirmed_deadline)}${currentProfile.role==='eng_manager'?`<button class="btn btn-sm" style="font-size:11px;padding:2px 8px" onclick="openExtendDeadlineModal('${p.id}','${p.confirmed_deadline||''}','${esc(p.project_no)}')">✏️ ขยาย</button>`:''}</div></div>
       <div class="detail-item"><div class="detail-label">จำนวนรวม</div><div class="detail-value">${p.qty} ชิ้น</div></div>
     </div>
     <div class="detail-row">
