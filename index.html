@@ -1264,12 +1264,7 @@ async function openProjectDetail(id) {
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">ใช้กับเครื่อง</div><div class="detail-value">${esc(p.machine_location||'-')}</div></div>
     </div>
-    ${p.attachment_url ? `
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin:4px 0;display:flex;align-items:center;gap:10px">
-      <span style="font-size:20px">📎</span>
-      <a href="${p.attachment_url}" target="_blank" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none">ดูไฟล์แนบ</a>
-      <span style="font-size:11px;color:var(--muted)">(คลิกเพื่อเปิด)</span>
-    </div>` : ''}
+    <div style="margin:4px 0">${p.attachment_url ? `<a href="${p.attachment_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;font-size:13px;text-decoration:none">📎 ดูไฟล์แนบ (Drawing/เอกสาร)</a>` : `<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;color:#94a3b8;font-size:13px">📎 ไม่มีไฟล์แนบ</span>`}</div>
     ${p.part_details && p.part_details.length ? `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:4px 0">
       <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">รายละเอียด Part</div>
