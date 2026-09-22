@@ -4062,17 +4062,23 @@ async function submitRequest() {
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
 
   const fileInput = document.getElementById('req-file-input');
-  if (fileInput?.files[0]) {
-    const file = fileInput.files[0];
-    if (file.size > 10 * 1024 * 1024) { showToast('ไฟล์ใหญ่เกิน 10MB', 'error'); }
-    else {
+  const files = fileInput ? Array.from(fileInput.files) : [];
+  if (files.length) {
+    const tooBig = files.filter(f => f.size > 10 * 1024 * 1024);
+    if (tooBig.length) { showToast(`ไฟล์ ${tooBig.map(f=>f.name).join(', ')} ใหญ่เกิน 10MB`, 'error'); }
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    const urls = [];
+    for (const file of validFiles) {
       const ext = file.name.split('.').pop();
-      const path = `${data.id}/${Date.now()}.${ext}`;
-      const { data: up, error: upErr } = await sb.storage.from('attachments').upload(path, file, { upsert: true });
+      const path = `${data.id}/${Date.now()}_${file.name}`;
+      const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { upsert: true });
       if (!upErr) {
         const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
-        await sb.from('projects').update({ attachment_url: urlData.publicUrl }).eq('id', data.id);
+        urls.push(urlData.publicUrl);
       }
+    }
+    if (urls.length) {
+      await sb.from('projects').update({ attachment_url: JSON.stringify(urls) }).eq('id', data.id);
     }
   }
 
