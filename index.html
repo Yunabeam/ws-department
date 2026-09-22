@@ -4025,9 +4025,11 @@ function toggleDrawing(val) {
 }
 
 function onReqFileChange(input) {
-  const file = input.files[0];
+  const files = Array.from(input.files);
   const label = document.getElementById('req-file-label');
-  if (file) label.innerHTML = `📄 <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(2)} MB) <span style="color:#dc2626;cursor:pointer;margin-left:8px" onclick="clearReqFile()">✕ ลบ</span>`;
+  if (files.length) {
+    label.innerHTML = files.map(f => `📄 <b>${esc(f.name)}</b> (${(f.size/1024/1024).toFixed(2)} MB)`).join('<br>') + ` <span style="color:#dc2626;cursor:pointer;margin-left:8px" onclick="clearReqFile()">✕ ลบทั้งหมด</span>`;
+  }
 }
 
 function clearReqFile() {
