@@ -2892,7 +2892,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
         </div>
         <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
           ${canSendQC ? `<button class="btn btn-sm btn-primary" onclick="sendToQC('${p.id}')">🔍 ส่ง QC</button>` : ''}
-          ${p.attachment_url ? `<a href="${p.attachment_url}" target="_blank" class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;text-decoration:none">📎 ไฟล์แนบ</a>` : `<span class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;cursor:default">📎 ไม่มีไฟล์แนบ</span>`}
+          ${renderAttachments(p.attachment_url, true)}
           <div style="text-align:right;min-width:90px">
             <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${done}/${total} ขั้นตอน</div>
             <div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:${pct}%;background:${barColor};transition:.3s"></div></div>
