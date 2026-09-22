@@ -4339,6 +4339,23 @@ function showToast(msg, type = 'info') {
 // ============================================================
 // UTILS
 // ============================================================
+function renderAttachments(attachment_url, compact = false) {
+  let urls = [];
+  if (attachment_url) {
+    try { urls = JSON.parse(attachment_url); if (!Array.isArray(urls)) urls = [attachment_url]; }
+    catch { urls = [attachment_url]; }
+  }
+  if (!urls.length) {
+    return compact
+      ? `<span class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;cursor:default">📎 ไม่มีไฟล์แนบ</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;color:#94a3b8;font-size:13px">📎 ไม่มีไฟล์แนบ</span>`;
+  }
+  if (compact) {
+    return urls.map((u, i) => `<a href="${u}" target="_blank" class="btn btn-sm" style="font-size:11px;padding:3px 8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;text-decoration:none">📎 ไฟล์${urls.length > 1 ? ' '+(i+1) : 'แนบ'}</a>`).join('');
+  }
+  return urls.map((u, i) => `<a href="${u}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1d4ed8;font-size:13px;text-decoration:none;margin-right:6px">📎 ไฟล์แนบ${urls.length > 1 ? ' '+(i+1) : ''}</a>`).join('');
+}
+
 function esc(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
