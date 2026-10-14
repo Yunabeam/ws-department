@@ -2651,8 +2651,12 @@ async function wsSavePlanDates(stepId, field, val) {
     const s = steps.find(x => x.id === stepId);
     if (s) { s[field === 'start' ? 'planned_start' : 'planned_end'] = val || null; updatedStep = s; }
   }
-  // save to DB
+  // save to DB — also promote to in_progress when a start date is set
   const upd = field === 'start' ? { planned_start: val||null } : { planned_end: val||null };
+  if (field === 'start' && val && updatedStep && ['pending','assigned'].includes(updatedStep.status)) {
+    upd.status = 'in_progress';
+    updatedStep.status = 'in_progress';
+  }
   await sb.from('process_steps').update(upd).eq('id', stepId);
   if (updatedStep) _wsSyncSummaryCache(updatedStep);
   // refresh worker summary
