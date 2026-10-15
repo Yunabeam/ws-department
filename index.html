@@ -1395,12 +1395,6 @@ async function sendToWorkers(projId) {
   const { data: steps } = await sb.from('process_steps').select('*').eq('project_id', projId).order('seq');
   if (!steps || steps.some(s => !s.assigned_to)) { showToast('กรุณามอบหมายงานทุกขั้นตอนก่อน', 'error'); return; }
   await sb.from('projects').update({ status: 'in_progress' }).eq('id', projId);
-  const today = todayStr();
-  for (const s of steps) {
-    const updates = { status: 'in_progress' };
-    if (!s.planned_start) { updates.planned_start = today; updates.planned_end = today; }
-    await sb.from('process_steps').update(updates).eq('id', s.id);
-  }
   // Notify first step worker
   const first = steps[0];
   await notify(first.assigned_to, `🔧 งานใหม่: ${p.project_no}`, `${p.name} - ขั้นตอน ${first.seq}: ${first.step_name}`, projId);
