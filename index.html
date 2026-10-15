@@ -2723,10 +2723,6 @@ async function wsSetPlanToday(stepId, projId) {
     const s = steps.find(x => x.id === stepId);
     if (s) { s.planned_start = today; s.planned_end = null; updatedStep = s; }
   }
-  if (updatedStep && ['pending','assigned'].includes(updatedStep.status)) {
-    stepUpd.status = 'in_progress';
-    updatedStep.status = 'in_progress';
-  }
   await sb.from('process_steps').update(stepUpd).eq('id', stepId);
   if (updatedStep) _wsSyncSummaryCache(updatedStep);
   showToast('วางแผนแล้ว ✅', 'success');
