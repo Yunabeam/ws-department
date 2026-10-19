@@ -2368,8 +2368,8 @@ function openKPISettings() {
     </div>
   `, [
     { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
-    { label:'บันทึก', cls:'btn-blue', action: () => {
-      saveKPISettings({
+    { label:'บันทึก', cls:'btn-blue', action: async () => {
+      await saveKPISettings({
         w_late: +document.getElementById('cfg-late').value || 5,
         w_qc:   +document.getElementById('cfg-qc').value   || 10,
         w_self: +document.getElementById('cfg-self').value || 3,
