@@ -3790,6 +3790,16 @@ async function startTask(stepId) {
   showToast('เริ่มงานแล้ว', 'info'); navigateTo('my-tasks');
 }
 
+// กรณีช่างกดเริ่มงานผิด — ย้อนกลับเป็นรอวางแผน (สถานะโปรเจคไม่ต้องแตะ เพราะแท็บตัดสินจากสถานะขั้นตอน)
+async function cancelStartTask(stepId) {
+  if (!currentUser?.is_super_admin) { showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return; }
+  if (!confirm('ยกเลิกการเริ่มงานของขั้นตอนนี้?\nสถานะจะกลับเป็น "รอวางแผน" และเวลาที่เริ่มจะถูกล้าง')) return;
+  const { error } = await sb.from('process_steps').update({ status: 'assigned', started_at: null }).eq('id', stepId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ยกเลิกการเริ่มงานแล้ว', 'success');
+  renderMyTasks(document.getElementById('main-content'));
+}
+
 async function completeTask(stepId, projId) {
   const [{ data: step }, { data: proj }] = await Promise.all([
     sb.from('process_steps').select('*').eq('id', stepId).single(),
