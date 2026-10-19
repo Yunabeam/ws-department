@@ -1965,9 +1965,13 @@ async function renderWSMonitor(mc, selDate) {
 // WORKER SELF LOG
 // ============================================================
 const SELF_LOG_WORKERS = {
-  'นายเรืองศิลป์  นามเหลา': 'cutting_job',
-  'นายศรันย์  สิงแก้ว': 'blade_sharpening',
+  'นายเรืองศิลป์ นามเหลา': 'roll_dressing',
+  'นายศรันย์ สิงแก้ว': 'blade_sharpening',
 };
+const LOG_TYPE_LABEL = { roll_dressing:'แต่งโล', blade_sharpening:'ช่างลับใบเลื่อย', cutting_job:'งานตัด' };
+const ROLL_SIZES = ['GS 1"x1"','GS 2"x1",1-/1/2"','GI 2"x1",1-/1/2"','GI 2"x2"','GS 3"x1-1/2"','GI 3"x1-1/2"','GS 4"x2"','GI 4"x2",3"x3"','GI 4"x4",6"x2"'];
+const rollDiff = d => (d.od_before !== '' && d.od_before != null && d.od_after !== '' && d.od_after != null)
+  ? (Number(d.od_before) - Number(d.od_after)).toFixed(2) : null;
 function getSelfLogType(name) {
   if (!name) return null;
   const n = name.replace(/\s+/g, ' ').trim();
