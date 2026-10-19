@@ -326,27 +326,27 @@ async function openManageListModal(type) {
     </div>
   `, [{ label: '💾 บันทึก', cls: 'btn-green', action: () => saveListChanges(type, list.length) }]);
 }
-function addListItem(type) {
+async function addListItem(type) {
   const newVal = document.getElementById('ml-new').value.trim();
   if (!newVal) return;
   const list = type === 'machine' ? getMachineList() : getWorkerList();
   list.push(newVal);
-  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  await (type === 'machine' ? saveMachineList(list) : saveWorkerList(list));
   closeModal(); openManageListModal(type);
 }
-function removeListItem(i, type) {
+async function removeListItem(i, type) {
   const list = type === 'machine' ? getMachineList() : getWorkerList();
   list.splice(i, 1);
-  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  await (type === 'machine' ? saveMachineList(list) : saveWorkerList(list));
   closeModal(); openManageListModal(type);
 }
-function saveListChanges(type, count) {
+async function saveListChanges(type, count) {
   const list = [];
   for (let i = 0; i < count; i++) {
     const el = document.getElementById('ml-' + i);
     if (el && el.value.trim()) list.push(el.value.trim());
   }
-  type === 'machine' ? saveMachineList(list) : saveWorkerList(list);
+  await (type === 'machine' ? saveMachineList(list) : saveWorkerList(list));
   showToast('บันทึกแล้ว', 'success'); closeModal();
 }
 
