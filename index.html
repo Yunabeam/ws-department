@@ -2203,7 +2203,10 @@ async function saveWorkerLog(workerName, logType) {
   const g = id => document.getElementById('wl-' + id);
   const v = id => g(id) ? g(id).value : '';
   let data = {};
-  if (logType === 'blade_sharpening') {
+  if (logType === 'roll_dressing') {
+    data = { size: v('size'), od_before: v('od_before'), status: 'in_progress', started_at: new Date().toISOString() };
+    if (!data.od_before) { showToast('กรุณากรอก OD ก่อนแต่งโล', 'error'); return; }
+  } else if (logType === 'blade_sharpening') {
     data = {
       blade_no: v('blade_no'), machine_sharpen: v('machine_sharpen'), machine_prod: v('machine_prod'),
       time_used: v('time_used'), before_crack: v('before_crack'), before_broken: v('before_broken'),
