@@ -2189,10 +2189,8 @@ async function deleteWorkerLog(id, workerName, logType) {
 }
 
 // ============================================================
-function getKPISettings() {
-  try { return JSON.parse(localStorage.getItem('kpi_settings')||'{}'); } catch(e) { return {}; }
-}
-function saveKPISettings(s) { localStorage.setItem('kpi_settings', JSON.stringify(s)); }
+function getKPISettings() { return _wsSettings?.kpi_settings || {}; }
+function saveKPISettings(s) { return saveWSSetting('kpi_settings', s); }
 
 async function renderKPIReport(mc, selMonth) {
   mc.innerHTML = `<div class="section-header"><div class="section-title">📈 รายงาน KPI</div></div><div class="card"><div class="spinner"></div></div>`;
