@@ -4283,7 +4283,56 @@ async function renderQCQueue(mc) {
           </div>
         </div>
       </div>`).join('')}
+    ${rollHtml}
   `;
+}
+
+async function openRollQCModal(logId) {
+  const { data: log } = await sb.from('worker_self_logs').select('*').eq('id', logId).single();
+  const d = log.data || {};
+  openModal('🧵 สุ่มตรวจงานแต่งโล', `
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">ช่าง</div><div class="detail-value">${esc(log.worker_name||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">ไซส์</div><div class="detail-value">${esc(d.size||'-')}</div></div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-item"><div class="detail-label">OD ก่อน → หลัง</div><div class="detail-value">${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">ส่วนต่าง</div><div class="detail-value">${rollDiff(d) ?? '-'}</div></div>
+      <div class="detail-item"><div class="detail-label">R ที่ช่างวัด</div><div class="detail-value">${esc(d.r_value||'-')}</div></div>
+    </div>
+    ${d.problem ? `<div style="margin-top:10px;font-size:13px"><b>ปัญหาที่ช่างแจ้ง:</b> ${esc(d.problem)}</div>` : ''}
+    <div class="form-group" style="margin-top:14px">
+      <label>ผลการตรวจ *</label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="roll-qc-result" value="pass" checked> ✅ ผ่าน</label>
+        <label class="radio-label"><input type="radio" name="roll-qc-result" value="fail"> ❌ ไม่ผ่าน</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>หมายเหตุ</label>
+      <textarea id="roll-qc-note" class="form-input" rows="2" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+    </div>
+  `, [
+    { label:'ยกเลิก', cls:'btn-ghost', action: closeModal },
+    { label:'บันทึกผล', cls:'btn-primary', action: () => submitRollQC(logId) },
+  ]);
+}
+
+async function submitRollQC(logId) {
+  const picked = document.querySelector('input[name="roll-qc-result"]:checked');
+  const result = picked ? picked.value : 'pass';
+  const note = (document.getElementById('roll-qc-note')||{}).value || '';
+  const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
+  if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
+  const data = Object.assign({}, log.data, {
+    status: result === 'pass' ? 'qc_pass' : 'qc_fail',
+    qc_note: note, qc_by: currentProfile?.full_name || '', qc_at: new Date().toISOString(),
+  });
+  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast(result === 'pass' ? 'บันทึกผล: ผ่าน' : 'บันทึกผล: ไม่ผ่าน', 'success');
+  closeModal();
+  await renderQCQueue(document.getElementById('main-content'));
 }
 
 async function revertFromQC(projId, projectNo) {
