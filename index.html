@@ -2812,17 +2812,11 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
     const total = steps.length;
     const pct = total ? Math.round(done / total * 100) : 0;
     const barColor = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--teal)' : '#d1d5db';
-    const isPrePlan = ['approved','planning'].includes(p.status);
-    const hasSteps = steps.length > 0;
-    const hasSched = steps.some(s => s.planned_start);
-    const allStepsDone = steps.length > 0 && steps.every(s => ['confirmed','done_by_worker'].includes(s.status));
-    const statusTag = isPrePlan
-      ? (!hasSteps
-          ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ รอใส่ขั้นตอนการทำงาน</span>'
-          : allStepsDone
-          ? '<span class="status s-in_progress">กำลังดำเนินการ</span>'
-          : '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>')
-      : p.status === 'pending_qc' ? '<span class="status s-pending_qc">รอ QC</span>'
+    const tab = wsTab(p, stepMap);
+    const statusTag =
+        tab === 'nosteps'   ? '<span class="status s-planning" style="background:#fef3c7;color:#92400e">⚠️ รอใส่ขั้นตอนการทำงาน</span>'
+      : tab === 'waitsched' ? '<span class="status s-planning" style="background:#e0f2fe;color:#0369a1">🗓 รอวางแผน</span>'
+      : tab === 'qc'        ? '<span class="status s-pending_qc">รอ QC</span>'
       : '<span class="status s-in_progress">กำลังดำเนินการ</span>';
     const stepsHtml = steps.length ? steps.map(s => {
       const isDone = ['confirmed','done_by_worker'].includes(s.status);
