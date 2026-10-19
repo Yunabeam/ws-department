@@ -3610,7 +3610,8 @@ async function renderMyTasks(mc) {
           <div style="width:100%;padding:10px 12px;background:#f0fdf4;border:1.5px solid var(--green);border-radius:8px;font-size:13px;color:#166534;margin-bottom:6px">
             📋 ทำเสร็จแล้ว? กดปุ่มด้านล่างเพื่อแจ้งหัวหน้า WS ให้มาตรวจรับงาน
           </div>
-          <button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ แจ้งเสร็จ → รอหัวหน้ายืนยัน</button>` : ''}
+          <button class="btn btn-green" onclick="completeTask('${s.id}','${s.project_id}')">✅ แจ้งเสร็จ → รอหัวหน้ายืนยัน</button>
+          ${currentUser?.is_super_admin ? `<button class="btn btn-ghost btn-sm" onclick="cancelStartTask('${s.id}')" title="กรณีช่างกดเริ่มงานผิด">↩ ยกเลิกการเริ่มงาน</button>` : ''}` : ''}
       </div>
     </div>`).join('')}
     ${waiting.length > 0 ? `
