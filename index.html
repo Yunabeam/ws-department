@@ -581,6 +581,7 @@ async function showApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').classList.add('active');
   if (!currentProfile) { showToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาติดต่อ Admin','error'); return; }
+  await loadWSSettings();
   document.getElementById('user-name-display').textContent = currentProfile.full_name;
   document.getElementById('role-badge-display').textContent = ROLE_LABELS[currentProfile.role] || currentProfile.role;
   // Show role switcher for super admin or users with secondary roles
