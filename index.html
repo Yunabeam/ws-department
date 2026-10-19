@@ -2178,7 +2178,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
       </tbody>
     </table>`;
 
-  const title = isBlade ? 'ใบรายงานประจำวันช่างลับใบเลื่อย' : 'ใบรายงานประจำวัน';
+  const title = isRoll ? 'บันทึกการแต่งโลประจำวัน' : isBlade ? 'ใบรายงานประจำวันช่างลับใบเลื่อย' : 'ใบรายงานประจำวัน';
   mc.innerHTML = `
     <div class="section-header">
       <div><div class="section-title">📝 ${title}</div>
