@@ -1827,16 +1827,40 @@ async function renderWSMonitor(mc, selDate) {
       const wLogs = (selfLogs||[]).filter(l => l.worker_name && l.worker_name.replace(/\s+/g,' ').trim() === wName.replace(/\s+/g,' ').trim());
       const shortName = wName.replace('นาย','').trim().split(' ')[0];
       const isBlade = lType === 'blade_sharpening';
+      const isRoll = lType === 'roll_dressing';
+      const typeLabel = LOG_TYPE_LABEL[lType] || lType;
+      const doingNow = isRoll ? wLogs.filter(l => (l.data||{}).status === 'in_progress').length : 0;
+      const liveTag = doingNow ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px">🔵 กำลังแต่ง ${doingNow}</span>` : '';
       if (wLogs.length === 0) return `
         <div class="card" style="margin-top:12px">
-          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${isBlade?'ช่างลับใบเลื่อย':'งานตัด'}) · ${wLogs.length} รายการ</span></div>
+          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${typeLabel}) · ${wLogs.length} รายการ</span></div>
           <p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">ยังไม่มีรายการบันทึก</p>
         </div>`;
       return `
         <div class="card" style="margin-top:12px">
-          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${isBlade?'ช่างลับใบเลื่อย':'งานตัด'}) · ${wLogs.length} รายการ</span></div>
+          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${typeLabel}) · ${wLogs.length} รายการ${liveTag}</span></div>
           <div style="overflow-x:auto;margin-top:10px">
-          ${isBlade ? `
+          ${isRoll ? `
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead><tr style="background:var(--surface-alt)">
+                <th style="padding:7px 6px">#</th><th style="padding:7px 6px;text-align:left">ไซส์</th>
+                <th style="padding:7px 6px">OD ก่อน</th><th style="padding:7px 6px">OD หลัง</th>
+                <th style="padding:7px 6px">ส่วนต่าง</th><th style="padding:7px 6px">R</th>
+                <th style="padding:7px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:7px 6px">สถานะ</th>
+              </tr></thead>
+              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; return `
+                <tr style="border-bottom:1px solid var(--border);${d.status==='in_progress'?'background:#eff6ff':''}">
+                  <td style="padding:7px 6px;color:var(--muted)">${i+1}</td>
+                  <td style="padding:7px 6px;font-weight:600">${esc(d.size||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.od_before||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.od_after||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center;font-weight:600;color:var(--teal)">${rollDiff(d) ?? '—'}</td>
+                  <td style="padding:7px 6px;text-align:center">${esc(d.r_value||'—')}</td>
+                  <td style="padding:7px 6px;color:var(--muted)">${esc(d.problem||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${rollStatusBadge(d)}</td>
+                </tr>`; }).join('')}
+              </tbody>
+            </table>` : isBlade ? `
             <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead><tr style="background:var(--surface-alt)">
                 <th style="padding:7px 6px">#</th><th style="padding:7px 6px">ใบเลื่อย</th>
