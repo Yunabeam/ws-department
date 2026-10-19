@@ -2789,11 +2789,7 @@ function renderWSPrjCards(projects, stepMap, workers, filter) {
   const filtered = projects.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'need') return ['approved','planning'].includes(p.status);
-    if (filter === 'nosteps') return ['approved','planning'].includes(p.status) && !(stepMap[p.id]||[]).length;
-    if (filter === 'waitsched') return ['approved','planning'].includes(p.status) && (stepMap[p.id]||[]).length;
-    if (filter === 'wip') return ['assigning','in_progress'].includes(p.status);
-    if (filter === 'qc') return p.status === 'pending_qc';
-    return true;
+    return wsTab(p, stepMap) === filter;
   });
   if (!filtered.length) return '<div class="card"><div class="empty"><div class="empty-icon">📭</div>ไม่มีโปรเจคในหมวดนี้</div></div>';
   return filtered.map(p => {
