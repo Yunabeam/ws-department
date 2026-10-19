@@ -2072,7 +2072,43 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
       <input id="wl-note" class="form-input" style="flex:1" placeholder="หมายเหตุ (ถ้ามี)">
     </div>`;
 
-  const tableHtml = isBlade ? `
+  const tableHtml = isRoll ? `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--surface-alt)">
+        <th style="padding:8px 6px;text-align:left">#</th>
+        <th style="padding:8px 6px;text-align:left">ไซส์</th>
+        <th style="padding:8px 6px">OD ก่อน</th>
+        <th style="padding:8px 6px">OD หลัง</th>
+        <th style="padding:8px 6px">ส่วนต่าง</th>
+        <th style="padding:8px 6px">R</th>
+        <th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th>
+        <th style="padding:8px 6px">สถานะ</th>
+        <th style="padding:8px 6px"></th>
+      </tr></thead>
+      <tbody>
+        ${(logs||[]).map((l,i) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const diff = rollDiff(d); return `
+        <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':''}">
+          <td style="padding:8px 6px;color:var(--muted)">${i+1}</td>
+          <td style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}</td>
+          <td style="padding:8px 6px;text-align:center">${esc(d.od_before||'—')}</td>
+          <td style="padding:8px 6px;text-align:center">${doing
+            ? `<input id="rd-after-${l.id}" class="form-input" type="number" step="0.01" style="width:90px;padding:4px 6px" placeholder="OD หลัง">`
+            : esc(d.od_after||'—')}</td>
+          <td style="padding:8px 6px;text-align:center;font-weight:600;color:var(--teal)">${diff ?? '—'}</td>
+          <td style="padding:8px 6px;text-align:center">${doing
+            ? `<input id="rd-r-${l.id}" class="form-input" type="number" step="0.01" style="width:80px;padding:4px 6px" placeholder="R">`
+            : esc(d.r_value||'—')}</td>
+          <td style="padding:8px 6px">${doing
+            ? `<input id="rd-prob-${l.id}" class="form-input" style="width:100%;min-width:140px;padding:4px 6px" placeholder="ปัญหา (ถ้ามี)">`
+            : `<span style="color:var(--muted)">${esc(d.problem||'—')}</span>`}</td>
+          <td style="padding:8px 6px;text-align:center">${rollStatusBadge(d)}</td>
+          <td style="padding:8px 6px;white-space:nowrap">
+            ${doing ? `<button class="btn btn-green btn-sm" onclick="finishRollDressing('${l.id}','${esc(workerName)}')">✅ เสร็จงาน</button>` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button>
+          </td>
+        </tr>`; }).join('')}
+      </tbody>
+    </table>` : isBlade ? `
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:var(--surface-alt)">
         <th style="padding:8px 6px;text-align:left">#</th>
