@@ -2232,6 +2232,38 @@ async function saveWorkerLog(workerName, logType) {
   await renderWorkerLogImpl(document.getElementById('main-content'), workerName, logType);
 }
 
+function rollStatusBadge(d) {
+  const S = {
+    in_progress: ['#dbeafe','#1e40af','กำลังแต่ง'],
+    done:        ['#fef9c3','#854d0e','รอ QC สุ่มตรวจ'],
+    qc_pass:     ['#dcfce7','#166534','QC ผ่าน'],
+    qc_fail:     ['#fee2e2','#991b1b','QC ไม่ผ่าน'],
+  }[d.status] || ['#f1f5f9','#64748b','—'];
+  return `<span style="background:${S[0]};color:${S[1]};font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap">${S[2]}</span>`;
+}
+
+// ช่างกดเสร็จงาน → กรอก OD หลังแต่ง/R/ปัญหา แล้วส่งเข้าคิว QC
+async function finishRollDressing(logId, workerName) {
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const odAfter = val('rd-after-' + logId);
+  if (!odAfter) { showToast('กรุณากรอก OD หลังแต่งโล', 'error'); return; }
+
+  const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
+  if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
+
+  const data = Object.assign({}, log.data, {
+    od_after: odAfter,
+    r_value: val('rd-r-' + logId),
+    problem: val('rd-prob-' + logId),
+    status: 'done',
+    finished_at: new Date().toISOString(),
+  });
+  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('เสร็จงานแล้ว — ส่งเข้าคิว QC', 'success');
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, 'roll_dressing');
+}
+
 async function deleteWorkerLog(id, workerName, logType) {
   if (!confirm('ลบรายการนี้?')) return;
   const { error } = await sb.from('worker_self_logs').delete().eq('id', id);
