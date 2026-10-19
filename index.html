@@ -289,14 +289,24 @@ let sidebarOpen = false;
 const WS_WORKERS = ['นายเรืองศิลป์ นามเหลา','นายพิพัฒน์ บุญเหลา','นายทศพร ไพรใหม่','นายทองยศ ไพรใหม่','MR.MYINT LAY (โกไซ)','นายศรันย์ สิงแก้ว','นายวีระ ทาโทน'];
 const WS_MACHINES = ['กลึง1','กลึง2','กลึง3','มิลลิ่ง','คว้าน','กระทุ้ง','ไส','เจียร์เล็ก','เจียร์ใหญ่','CNC','เจียรโรเตอร์รี่','เจียร์กลม','เจียรกลม1','เจียร์กลม2','สว่าน','สว่านเจาะ','เลื่อย'];
 
-function getWorkerList() {
-  try { const c = localStorage.getItem('ws_workers'); return c ? JSON.parse(c) : [...WS_WORKERS]; } catch { return [...WS_WORKERS]; }
+// ค่าตั้งต้นใช้เมื่อโหลดจาก DB ไม่สำเร็จ แอปจะได้ไม่พัง
+let _wsSettings = null;
+
+async function loadWSSettings() {
+  const { data } = await sb.from('ws_settings').select('key,value');
+  if (data) _wsSettings = Object.fromEntries(data.map(r => [r.key, r.value]));
 }
-function getMachineList() {
-  try { const c = localStorage.getItem('ws_machines'); return c ? JSON.parse(c) : [...WS_MACHINES]; } catch { return [...WS_MACHINES]; }
+
+async function saveWSSetting(key, value) {
+  if (_wsSettings) _wsSettings[key] = value;
+  const { error } = await sb.from('ws_settings').upsert({ key, value, updated_at: new Date().toISOString() });
+  if (error) showToast('บันทึกลงฐานข้อมูลไม่สำเร็จ', 'error');
 }
-function saveWorkerList(list) { localStorage.setItem('ws_workers', JSON.stringify(list)); }
-function saveMachineList(list) { localStorage.setItem('ws_machines', JSON.stringify(list)); }
+
+function getWorkerList() { return [...(_wsSettings?.workers || WS_WORKERS)]; }
+function getMachineList() { return [...(_wsSettings?.machines || WS_MACHINES)]; }
+function saveWorkerList(list) { return saveWSSetting('workers', list); }
+function saveMachineList(list) { return saveWSSetting('machines', list); }
 
 async function openManageListModal(type) {
   if (type === 'stepname') { await openStepNameModal(); return; }
