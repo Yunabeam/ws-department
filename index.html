@@ -2276,7 +2276,7 @@ async function saveWorkerLog(workerName, logType) {
   const v = id => g(id) ? g(id).value : '';
   let data = {};
   if (logType === 'roll_dressing') {
-    data = { size: v('size'), od_before: v('od_before'), status: 'in_progress', started_at: new Date().toISOString() };
+    data = { size: v('size'), color: v('color'), od_before: v('od_before'), status: 'in_progress', started_at: new Date().toISOString() };
     if (!data.od_before) { showToast('กรุณากรอก OD ก่อนแต่งโรล', 'error'); return; }
   } else if (logType === 'blade_sharpening') {
     data = {
