@@ -1941,7 +1941,7 @@ async function renderWSMonitor(mc, selDate) {
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--text-secondary)">
           <span>OD: <b>${esc(d.od_before||'—')} → ${esc(d.od_after||'—')}</b></span>
           <span>ส่วนต่าง: <b style="color:var(--teal)">${rollDiff(d) ?? '—'}</b></span>
-          <span>R: <b>${esc(d.r_value||'—')}</b></span>
+          <span>R ท่อ: <b>${esc(d.r_value||'—')}</b></span>
           <span>🕐 เริ่ม: <b>${fmtClock(d.started_at)}</b></span>
           <span>🏁 เสร็จ: <b>${fmtClock(d.finished_at)}</b></span>
           <span>⏱ ใช้เวลา: <b${doing?' style="color:#2563eb"':''}>${rollDuration(d)}</b></span>
@@ -2141,7 +2141,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         <th style="padding:8px 6px">OD ก่อน</th>
         <th style="padding:8px 6px">OD หลัง</th>
         <th style="padding:8px 6px">ส่วนต่าง</th>
-        <th style="padding:8px 6px">R</th>
+        <th style="padding:8px 6px">R ท่อ</th>
         <th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th>
         <th style="padding:8px 6px">สถานะ</th>
         <th style="padding:8px 6px"></th>
@@ -2156,8 +2156,8 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
             ? `<input id="rd-after-${l.id}" data-before="${esc(d.od_before||'')}" oninput="updateRollDiff('${l.id}')" class="form-input" type="number" step="0.01" style="width:90px;padding:4px 6px" placeholder="OD หลัง">`
             : esc(d.od_after||'—')}</td>
           <td data-label="ส่วนต่าง" id="rd-diff-${l.id}" style="padding:8px 6px;text-align:center;font-weight:600;color:var(--teal)">${diff ?? '—'}</td>
-          <td data-label="R" style="padding:8px 6px;text-align:center">${doing
-            ? `<input id="rd-r-${l.id}" class="form-input" type="number" step="0.01" style="width:80px;padding:4px 6px" placeholder="R">`
+          <td data-label="R ท่อ" style="padding:8px 6px;text-align:center">${doing
+            ? `<input id="rd-r-${l.id}" class="form-input" type="number" step="0.01" style="width:80px;padding:4px 6px" placeholder="R ท่อ">`
             : esc(d.r_value||'—')}</td>
           <td data-label="ปัญหาที่เจอ" style="padding:8px 6px">${doing
             ? `<input id="rd-prob-${l.id}" class="form-input" style="width:100%;min-width:140px;padding:4px 6px" placeholder="ปัญหา (ถ้ามี)">`
@@ -2795,7 +2795,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
       ${rollStatusBadge(d)}
     </div>
     <div style="font-size:13px;color:var(--muted)">
-      OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')} · ส่วนต่าง <b style="color:var(--teal)">${rollDiff(d) ?? '-'}</b> · R ${esc(d.r_value||'-')}
+      OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')} · ส่วนต่าง <b style="color:var(--teal)">${rollDiff(d) ?? '-'}</b> · R ท่อ ${esc(d.r_value||'-')}
     </div>
     <div style="font-size:13px;color:var(--muted);margin-top:4px">
       🕐 เริ่ม ${fmtClock(d.started_at)} · 🏁 เสร็จ ${fmtClock(d.finished_at)} · ⏱ ใช้เวลา <b${doing?' style="color:#2563eb"':''}>${rollDuration(d)}</b>
@@ -4362,7 +4362,7 @@ async function renderQCQueue(mc) {
               <th style="padding:8px 6px;text-align:left">วันที่</th><th style="padding:8px 6px;text-align:left">ช่าง</th>
               <th style="padding:8px 6px;text-align:left">ไซส์</th><th style="padding:8px 6px">OD ก่อน</th>
               <th style="padding:8px 6px">OD หลัง</th><th style="padding:8px 6px">ส่วนต่าง</th>
-              <th style="padding:8px 6px">R</th><th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:8px 6px"></th>
+              <th style="padding:8px 6px">R ท่อ</th><th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:8px 6px"></th>
             </tr></thead>
             <tbody>${rollPending.map(l => { const d = l.data||{}; return `
               <tr style="border-bottom:1px solid var(--border)">
@@ -4409,7 +4409,7 @@ async function openRollQCModal(logId) {
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">OD ก่อน → หลัง</div><div class="detail-value">${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}</div></div>
       <div class="detail-item"><div class="detail-label">ส่วนต่าง</div><div class="detail-value">${rollDiff(d) ?? '-'}</div></div>
-      <div class="detail-item"><div class="detail-label">R ที่ช่างวัด</div><div class="detail-value">${esc(d.r_value||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">R ท่อ ที่ช่างวัด</div><div class="detail-value">${esc(d.r_value||'-')}</div></div>
     </div>
     ${d.problem ? `<div style="margin-top:10px;font-size:13px"><b>ปัญหาที่ช่างแจ้ง:</b> ${esc(d.problem)}</div>` : ''}
     <div class="form-group" style="margin-top:14px">
