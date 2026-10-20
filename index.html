@@ -2808,7 +2808,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
       ${rollStatusBadge(d)}
     </div>
     <div style="font-size:13px;color:var(--muted)">
-      OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')} · ส่วนต่าง <b style="color:var(--teal)">${rollDiff(d) ?? '-'}</b> · R ท่อ ${esc(d.r_value||'-')}
+      สี ${rollColor(d.color)} · OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')} · ส่วนต่าง <b style="color:var(--teal)">${rollDiff(d) ?? '-'}</b> · R ท่อ ${esc(d.r_value||'-')}
     </div>
     <div style="font-size:13px;color:var(--muted);margin-top:4px">
       🕐 เริ่ม ${fmtClock(d.started_at)} · 🏁 เสร็จ ${fmtClock(d.finished_at)} · ⏱ ใช้เวลา <b${doing?' style="color:#2563eb"':''}>${rollDuration(d)}</b>
