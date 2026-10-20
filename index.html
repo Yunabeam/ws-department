@@ -2793,7 +2793,7 @@ function wsRefreshSummary(dateStr) {
   const allStepsFlat = window._wsSummarySteps || [];
   const workers = window._wsWorkers || getWorkerList();
   const el = document.getElementById('ws-worker-summary');
-  if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr, window._wsAdhocTasks||[]);
+  if (el) el.innerHTML = renderWorkerTodaySummary(workers, allStepsFlat, dateStr, window._wsAdhocTasks||[], window._wsSelfLogs||[]);
   const input = document.getElementById('ws-summary-date');
   if (input) input.value = dateStr;
 }
