@@ -2685,7 +2685,10 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [],
         <div style="width:${barPct}%;height:100%;background:#22c55e;border-radius:3px"></div>
       </div>
       <div style="font-size:12px;color:var(--text-secondary)">
-        ${totalJobs === 0 ? 'ว่าง' : `${tasks.length ? hrs.toFixed(1)+' ชม. · ' : ''}${totalJobs} งาน${adhocs.length > 0 ? ` (${adhocs.length} ซัพพอร์ต)` : ''}`}
+        ${totalJobs === 0 ? 'ว่าง' : `${hrs ? fmtHrs(hrs)+' · ' : ''}${totalJobs} งาน${[
+            adhocs.length > 0 ? `${adhocs.length} ซัพพอร์ต` : '',
+            logs.length > 0 ? `${logs.length} แต่งโรล` : ''
+          ].filter(Boolean).join(' · ').replace(/^(.+)$/, ' ($1)')}`}
       </div>
     </div>`;
   }).join('');
