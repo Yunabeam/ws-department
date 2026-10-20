@@ -2638,14 +2638,10 @@ async function renderWSStatusPlan(mc) {
 // ============================================================
 // WS MANAGER - WORKER TODAY SUMMARY
 // ============================================================
-function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = []) {
+function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [], selfLogs = []) {
+  const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
   const workerData = workers.map(w => {
-    const tasks = allStepsFlat.filter(s => {
-      if (s.assigned_name !== w) return false;
-      if (!s.planned_start) return s.status === 'in_progress';
-      if (['assigned','in_progress'].includes(s.status) && s.planned_start <= today) return true;
-      return dateInRange(today, s.planned_start, s.planned_end);
-    });
+    const tasks = allStepsFlat.filter(s => s.assigned_name === w && isWorkerDayStep(s, today));
     const adhocs = adhocTasks.filter(t => {
       if (t.assigned_name !== w) return false;
       const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
@@ -2653,10 +2649,12 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [])
       if (['assigned','in_progress'].includes(t.status)) return true;
       return createdDate === today;
     });
-    const hrs = tasks.reduce((sum, s) => sum + getStepHours(s), 0);
-    const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + getStepHours(s), 0);
+    const logs = (selfLogs||[]).filter(l => nameKey(l.worker_name) === nameKey(w) && l.log_type === 'roll_dressing');
+    const hrs = tasks.reduce((sum, s) => sum + stepPlannedHours(s), 0)
+              + logs.reduce((sum, l) => sum + rollLogHours(l.data), 0);
+    const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + stepPlannedHours(s), 0);
     const allDone = tasks.length > 0 && tasks.every(s => ['confirmed','done_by_worker'].includes(s.status));
-    return { w, tasks, hrs, doneHrs, allDone, adhocs };
+    return { w, tasks, hrs, doneHrs, allDone, adhocs, logs };
   });
 
   const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone, adhocs}) => {
