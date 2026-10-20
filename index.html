@@ -2727,7 +2727,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
     return createdDate === dateStr;
   });
 
-  if (!tasks.length && !adhocs.length) {
+  if (!tasks.length && !adhocs.length && !logs.length) {
     openModal(`🔧 งานของ ${esc(workerName)}`, `<div class="empty"><div class="empty-icon">📭</div>ไม่มีงานในวันที่ ${fmtDate(dateStr)}</div>`);
     return;
   }
