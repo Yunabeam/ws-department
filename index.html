@@ -1829,7 +1829,7 @@ async function renderWSMonitor(mc, selDate) {
               <div style="width:${mySteps.length ? Math.round(done.length/mySteps.length*100) : onlyAdhocDone ? 100 : 0}%;height:100%;background:#22c55e;border-radius:3px"></div>
             </div>
             <div style="font-size:12px;color:var(--text-secondary)">
-              ${totalJobs === 0 ? 'ว่าง' : `${totalMins ? fmtMins(totalMins)+' · ' : ''}${totalJobs} งาน${[
+              ${totalJobs === 0 ? 'ว่าง' : `${totalHrs ? fmtHrs(totalHrs)+' · ' : ''}${totalJobs} งาน${[
                   myAdhocs.length > 0 ? `${myAdhocs.length} ซัพพอร์ต` : '',
                   myLogs.length > 0 ? `${myLogs.length} แต่งโรล` : ''
                 ].filter(Boolean).join(' · ').replace(/^(.+)$/, ' ($1)')}`}
