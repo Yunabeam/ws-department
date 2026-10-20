@@ -2334,6 +2334,9 @@ async function finishRollDressing(logId, workerName) {
 }
 
 async function deleteWorkerLog(id, workerName, logType) {
+  if (logType === 'roll_dressing' && !currentUser?.is_super_admin) {
+    showToast('คุณไม่มีสิทธิ์ลบรายการนี้', 'error'); return;
+  }
   if (!confirm('ลบรายการนี้?')) return;
   const { error } = await sb.from('worker_self_logs').delete().eq('id', id);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
