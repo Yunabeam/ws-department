@@ -1929,7 +1929,7 @@ async function renderWSMonitor(mc, selDate) {
     if (!el) return;
     const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
     const key = n => (n||'').replace(/\s+/g,' ').trim();
-    const myLogs = (selfLogs||[]).filter(l => key(l.worker_name) === key(w) && l.log_type === 'roll_dressing');
+    const myLogs = rollLogsNewestFirst((selfLogs||[]).filter(l => key(l.worker_name) === key(w) && l.log_type === 'roll_dressing'));
     if (mySteps.length === 0 && myAdhocs.length === 0 && myLogs.length === 0) { el.innerHTML = `<div class="card" style="color:var(--text-secondary);text-align:center;padding:20px">ไม่มีงานวันนี้</div>`; return; }
     const rollHtml = myLogs.map(l => { const d = l.data||{}; const doing = d.status === 'in_progress'; return `
       <div style="background:${doing?'#eff6ff':'#f8fafc'};border-left:4px solid ${doing?'#3b82f6':'#cbd5e1'};border-radius:8px;padding:10px 14px">
