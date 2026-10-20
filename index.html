@@ -1971,6 +1971,7 @@ async function renderWSMonitor(mc, selDate) {
       <div class="card">
         <div class="card-header"><span class="card-title">📋 งานของ ${esc(w)}</span></div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          ${rollHtml}
           ${mySteps.map(s => `
             <div style="background:${STATUS_BG[s.status]||'#f8fafc'};border-left:4px solid ${STATUS_BORDER[s.status]||'#cbd5e1'};border-radius:8px;padding:10px 14px">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
