@@ -4383,6 +4383,7 @@ async function renderQCQueue(mc) {
                 <td style="padding:8px 6px;color:var(--muted)">${fmtDate(l.log_date)}</td>
                 <td style="padding:8px 6px">${esc(l.worker_name||'—')}</td>
                 <td style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}</td>
+                <td style="padding:8px 6px">${rollColor(d.color)}</td>
                 <td style="padding:8px 6px;text-align:center">${esc(d.od_before||'—')}</td>
                 <td style="padding:8px 6px;text-align:center">${esc(d.od_after||'—')}</td>
                 <td style="padding:8px 6px;text-align:center;font-weight:600;color:var(--teal)">${rollDiff(d) ?? '—'}</td>
