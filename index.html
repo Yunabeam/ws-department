@@ -2650,8 +2650,7 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [],
     const hrs = tasks.reduce((sum, s) => sum + stepPlannedHours(s), 0)
               + logs.reduce((sum, l) => sum + rollLogHours(l.data), 0);
     const doneHrs = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status)).reduce((sum, s) => sum + stepPlannedHours(s), 0);
-    const allDone = tasks.length > 0 && tasks.every(s => ['confirmed','done_by_worker'].includes(s.status));
-    return { w, tasks, hrs, doneHrs, allDone, adhocs, logs };
+    return { w, tasks, hrs, doneHrs, adhocs, logs };
   });
 
   const cards = workerData.map(({w, tasks, hrs, doneHrs, adhocs, logs}) => {
