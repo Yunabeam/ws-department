@@ -2256,6 +2256,14 @@ async function saveWorkerLog(workerName, logType) {
   await renderWorkerLogImpl(document.getElementById('main-content'), workerName, logType);
 }
 
+// คำนวณส่วนต่างสดขณะช่างพิมพ์ OD หลังแต่ง
+function updateRollDiff(logId) {
+  const input = document.getElementById('rd-after-' + logId);
+  const cell = document.getElementById('rd-diff-' + logId);
+  if (!input || !cell) return;
+  cell.textContent = rollDiff({ od_before: input.dataset.before, od_after: input.value }) ?? '—';
+}
+
 function rollStatusBadge(d) {
   const S = {
     in_progress: ['#dbeafe','#1e40af','กำลังแต่ง'],
