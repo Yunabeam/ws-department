@@ -1842,13 +1842,12 @@ async function renderWSMonitor(mc, selDate) {
     <div id="monitor-detail"></div>
 
     ${Object.entries(SELF_LOG_WORKERS).map(([wName, lType]) => {
+      // แต่งโรลแสดงอยู่ในการ์ดช่างแล้ว ไม่ต้องซ้ำที่นี่
+      if (lType === 'roll_dressing') return '';
       const wLogs = (selfLogs||[]).filter(l => l.worker_name && l.worker_name.replace(/\s+/g,' ').trim() === wName.replace(/\s+/g,' ').trim());
       const shortName = wName.replace('นาย','').trim().split(' ')[0];
       const isBlade = lType === 'blade_sharpening';
-      const isRoll = lType === 'roll_dressing';
       const typeLabel = LOG_TYPE_LABEL[lType] || lType;
-      const doingNow = isRoll ? wLogs.filter(l => (l.data||{}).status === 'in_progress').length : 0;
-      const liveTag = doingNow ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px">🔵 กำลังแต่ง ${doingNow}</span>` : '';
       if (wLogs.length === 0) return `
         <div class="card" style="margin-top:12px">
           <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${typeLabel}) · ${wLogs.length} รายการ</span></div>
@@ -1856,34 +1855,9 @@ async function renderWSMonitor(mc, selDate) {
         </div>`;
       return `
         <div class="card" style="margin-top:12px">
-          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${typeLabel}) · ${wLogs.length} รายการ${liveTag}</span></div>
+          <div class="card-header"><span class="card-title">📝 บันทึกงาน ${esc(shortName)} (${typeLabel}) · ${wLogs.length} รายการ</span></div>
           <div style="overflow-x:auto;margin-top:10px">
-          ${isRoll ? `
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-              <thead><tr style="background:var(--surface-alt)">
-                <th style="padding:7px 6px">#</th><th style="padding:7px 6px;text-align:left">ไซส์</th>
-                <th style="padding:7px 6px">OD ก่อน</th><th style="padding:7px 6px">OD หลัง</th>
-                <th style="padding:7px 6px">ส่วนต่าง</th><th style="padding:7px 6px">R</th>
-                <th style="padding:7px 6px">เริ่ม</th><th style="padding:7px 6px">เสร็จ</th>
-                <th style="padding:7px 6px">ใช้เวลา</th>
-                <th style="padding:7px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:7px 6px">สถานะ</th>
-              </tr></thead>
-              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; const doing=d.status==='in_progress'; return `
-                <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':''}">
-                  <td style="padding:7px 6px;color:var(--muted)">${i+1}</td>
-                  <td style="padding:7px 6px;font-weight:600">${esc(d.size||'—')}</td>
-                  <td style="padding:7px 6px;text-align:center">${esc(d.od_before||'—')}</td>
-                  <td style="padding:7px 6px;text-align:center">${esc(d.od_after||'—')}</td>
-                  <td style="padding:7px 6px;text-align:center;font-weight:600;color:var(--teal)">${rollDiff(d) ?? '—'}</td>
-                  <td style="padding:7px 6px;text-align:center">${esc(d.r_value||'—')}</td>
-                  <td style="padding:7px 6px;text-align:center">${fmtClock(d.started_at)}</td>
-                  <td style="padding:7px 6px;text-align:center">${fmtClock(d.finished_at)}</td>
-                  <td style="padding:7px 6px;text-align:center;font-weight:600;${doing?'color:#2563eb':''}">${rollDuration(d)}${doing?' <span style="font-size:10px;font-weight:400">(กำลังนับ)</span>':''}</td>
-                  <td style="padding:7px 6px;color:var(--muted)">${esc(d.problem||'—')}</td>
-                  <td style="padding:7px 6px;text-align:center">${rollStatusBadge(d)}</td>
-                </tr>`; }).join('')}
-              </tbody>
-            </table>` : isBlade ? `
+          ${isBlade ? `
             <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead><tr style="background:var(--surface-alt)">
                 <th style="padding:7px 6px">#</th><th style="padding:7px 6px">ใบเลื่อย</th>
