@@ -1787,23 +1787,29 @@ async function renderWSMonitor(mc, selDate) {
         const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
         const myAdhocActive = myAdhocs.filter(t => ['assigned','in_progress'].includes(t.status));
         const myAdhocDone = myAdhocs.filter(t => ['done','confirmed'].includes(t.status));
+        const myLogs = logsOf(w);
+        const logDoing = myLogs.filter(l => (l.data||{}).status === 'in_progress');
         const done = mySteps.filter(s => ['confirmed','done_by_worker'].includes(s.status));
         const inProg = mySteps.filter(s => s.status === 'in_progress');
         const totalPlanMins = mySteps.reduce((sum,s) => sum + (plannedMins(s)||0), 0);
+        const logMins = myLogs.reduce((sum,l) => sum + rollMins(l.data||{}), 0);
         const allStepsDone = mySteps.length > 0 && done.length === mySteps.length;
-        const allDone = allStepsDone && myAdhocActive.length === 0;
+        const allDone = allStepsDone && myAdhocActive.length === 0 && logDoing.length === 0;
         const hasAdhocActive = myAdhocActive.length > 0;
-        const onlyAdhocDone = mySteps.length === 0 && myAdhocActive.length === 0 && myAdhocDone.length > 0;
-        const cardBorder = allDone || onlyAdhocDone ? '2px solid #22c55e' : inProg.length > 0 ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
-        const cardBg = allDone || onlyAdhocDone ? '#f0fdf4' : hasAdhocActive && mySteps.length === 0 ? '#f0f9ff' : 'var(--surface)';
+        const onlyAdhocDone = mySteps.length === 0 && myAdhocActive.length === 0 && logDoing.length === 0 && (myAdhocDone.length > 0 || myLogs.length > 0);
+        const cardBorder = allDone || onlyAdhocDone ? '2px solid #22c55e' : (inProg.length > 0 || logDoing.length > 0) ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
+        const cardBg = allDone || onlyAdhocDone ? '#f0fdf4' : (hasAdhocActive || logDoing.length > 0) && mySteps.length === 0 ? '#f0f9ff' : 'var(--surface)';
         const statusTag = allDone || onlyAdhocDone
           ? `<span style="background:#22c55e;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">เสร็จ</span>`
+          : logDoing.length > 0
+          ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">🧵 กำลังแต่งโรล</span>`
           : inProg.length > 0
           ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">กำลังทำ</span>`
           : hasAdhocActive
           ? `<span style="background:#0d9488;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">ซัพพอร์ต</span>`
           : '';
-        const totalJobs = mySteps.length + myAdhocs.length;
+        const totalJobs = mySteps.length + myAdhocs.length + myLogs.length;
+        const totalMins = totalPlanMins + logMins;
 
         return `
           <div onclick="monitorToggle('${w}')" style="cursor:pointer;background:${cardBg};border:${cardBorder};border-radius:12px;padding:12px 16px;min-width:130px;flex:0 0 auto">
