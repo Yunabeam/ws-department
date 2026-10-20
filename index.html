@@ -2595,9 +2595,11 @@ async function renderWSStatusPlan(mc) {
   const { data: adhocTasks } = await sb.from('adhoc_tasks').select('*').in('status',['assigned','in_progress','done','confirmed']);
   // ภาพรวมช่างวันนี้ ต้องไม่ผูกกับสถานะโปรเจค (โปรเจคที่ QC ผ่าน/เสร็จแล้วยังต้องนับงานที่ทำวันนั้นได้)
   // รวมงานที่ planned_start = null แต่ in_progress จริง (เริ่มทำแล้วแต่ไม่ได้วางแผนวัน)
-  const [{ data: summaryStepsSched }, { data: summaryStepsActive }] = await Promise.all([
+  const today = todayStr();
+  const [{ data: summaryStepsSched }, { data: summaryStepsActive }, { data: summarySelfLogs }] = await Promise.all([
     sb.from('process_steps').select('*').not('planned_start', 'is', null),
-    sb.from('process_steps').select('*').is('planned_start', null).eq('status', 'in_progress')
+    sb.from('process_steps').select('*').is('planned_start', null).eq('status', 'in_progress'),
+    sb.from('worker_self_logs').select('*').eq('log_date', today)
   ]);
   const summarySteps = [...(summaryStepsSched||[]), ...(summaryStepsActive||[])];
 
@@ -2606,9 +2608,9 @@ async function renderWSStatusPlan(mc) {
   window._wsWorkers = workerList;
   window._wsAdhocTasks = adhocTasks || [];
   window._wsSummarySteps = summarySteps || [];
+  window._wsSelfLogs = summarySelfLogs || [];
 
-  const today = todayStr();
-  const workerSummaryHtml = renderWorkerTodaySummary(workerList, window._wsSummarySteps, today, adhocTasks || []);
+  const workerSummaryHtml = renderWorkerTodaySummary(workerList, window._wsSummarySteps, today, adhocTasks || [], window._wsSelfLogs);
 
   mc.innerHTML = `
     <div class="section-header">
