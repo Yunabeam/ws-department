@@ -1846,16 +1846,21 @@ async function renderWSMonitor(mc, selDate) {
                 <th style="padding:7px 6px">#</th><th style="padding:7px 6px;text-align:left">ไซส์</th>
                 <th style="padding:7px 6px">OD ก่อน</th><th style="padding:7px 6px">OD หลัง</th>
                 <th style="padding:7px 6px">ส่วนต่าง</th><th style="padding:7px 6px">R</th>
+                <th style="padding:7px 6px">เริ่ม</th><th style="padding:7px 6px">เสร็จ</th>
+                <th style="padding:7px 6px">ใช้เวลา</th>
                 <th style="padding:7px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:7px 6px">สถานะ</th>
               </tr></thead>
-              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; return `
-                <tr style="border-bottom:1px solid var(--border);${d.status==='in_progress'?'background:#eff6ff':''}">
+              <tbody>${wLogs.map((l,i)=>{ const d=l.data||{}; const doing=d.status==='in_progress'; return `
+                <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':''}">
                   <td style="padding:7px 6px;color:var(--muted)">${i+1}</td>
                   <td style="padding:7px 6px;font-weight:600">${esc(d.size||'—')}</td>
                   <td style="padding:7px 6px;text-align:center">${esc(d.od_before||'—')}</td>
                   <td style="padding:7px 6px;text-align:center">${esc(d.od_after||'—')}</td>
                   <td style="padding:7px 6px;text-align:center;font-weight:600;color:var(--teal)">${rollDiff(d) ?? '—'}</td>
                   <td style="padding:7px 6px;text-align:center">${esc(d.r_value||'—')}</td>
+                  <td style="padding:7px 6px;text-align:center">${fmtClock(d.started_at)}</td>
+                  <td style="padding:7px 6px;text-align:center">${fmtClock(d.finished_at)}</td>
+                  <td style="padding:7px 6px;text-align:center;font-weight:600;${doing?'color:#2563eb':''}">${rollDuration(d)}${doing?' <span style="font-size:10px;font-weight:400">(กำลังนับ)</span>':''}</td>
                   <td style="padding:7px 6px;color:var(--muted)">${esc(d.problem||'—')}</td>
                   <td style="padding:7px 6px;text-align:center">${rollStatusBadge(d)}</td>
                 </tr>`; }).join('')}
