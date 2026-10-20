@@ -155,6 +155,19 @@ tr:hover td{background:#f8fafc}
   .notif-panel{width:100%}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
+/* ตารางแต่งโรล: บนมือถือแตกเป็นการ์ดแนวตั้ง ไม่ต้องเลื่อนซ้ายขวา */
+@media(max-width:768px){
+  .roll-table thead{display:none}
+  .roll-table,.roll-table tbody,.roll-table tr,.roll-table td{display:block;width:100%}
+  .roll-table tr{border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .roll-table td{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 0!important;text-align:left!important;border:none}
+  .roll-table td+td{border-top:1px solid var(--border)}
+  .roll-table td::before{content:attr(data-label);font-size:12px;font-weight:600;color:var(--muted);flex:0 0 auto}
+  .roll-table td:empty{display:none}
+  .roll-table td input{width:58%!important;font-size:16px!important;padding:10px 12px!important}
+  .roll-table td .btn{font-size:14px;padding:8px 14px}
+}
 /* KPI CHART */
 .kpi-bar-wrap{margin-bottom:8px}
 .kpi-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:var(--text)}
