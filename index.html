@@ -2147,7 +2147,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         <th style="padding:8px 6px"></th>
       </tr></thead>
       <tbody>
-        ${[...(logs||[])].reverse().map((l,i,arr) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const diff = rollDiff(d); return `
+        ${rollLogsNewestFirst(logs).map((l,i,arr) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const diff = rollDiff(d); return `
         <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':''}">
           <td data-label="ลำดับ" style="padding:8px 6px;color:var(--muted)">${arr.length - i}</td>
           <td data-label="ไซส์" style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}</td>
