@@ -2654,16 +2654,20 @@ function renderWorkerTodaySummary(workers, allStepsFlat, today, adhocTasks = [],
     return { w, tasks, hrs, doneHrs, allDone, adhocs, logs };
   });
 
-  const cards = workerData.map(({w, tasks, hrs, doneHrs, allDone, adhocs, logs}) => {
+  const cards = workerData.map(({w, tasks, hrs, doneHrs, adhocs, logs}) => {
     const done = tasks.filter(s => ['confirmed','done_by_worker'].includes(s.status));
     const inProg = tasks.filter(s => s.status === 'in_progress');
     const logDoing = logs.filter(l => (l.data||{}).status === 'in_progress');
-    const hasAdhocActive = adhocs.length > 0;
-    const onlyAdhocDone = tasks.length === 0 && adhocs.length === 0 && logDoing.length === 0;
+    const adhocActive = adhocs.filter(t => ['assigned','in_progress'].includes(t.status));
+    const adhocDone = adhocs.filter(t => ['done','confirmed'].includes(t.status));
+    const allStepsDone = tasks.length > 0 && done.length === tasks.length;
+    const allDone = allStepsDone && adhocActive.length === 0 && logDoing.length === 0;
+    const hasAdhocActive = adhocActive.length > 0;
+    const onlyAdhocDone = tasks.length === 0 && adhocActive.length === 0 && logDoing.length === 0 && (adhocDone.length > 0 || logs.length > 0);
     const totalJobs = tasks.length + adhocs.length + logs.length;
-    const cardBorder = (allDone && logDoing.length === 0) || onlyAdhocDone ? '2px solid #22c55e' : (inProg.length > 0 || logDoing.length > 0) ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
-    const cardBg = allDone && logDoing.length === 0 ? '#f0fdf4' : (hasAdhocActive || logDoing.length > 0) && tasks.length === 0 ? '#f0f9ff' : 'var(--surface)';
-    const statusTag = allDone && logDoing.length === 0
+    const cardBorder = allDone || onlyAdhocDone ? '2px solid #22c55e' : (inProg.length > 0 || logDoing.length > 0) ? '2px solid #3b82f6' : hasAdhocActive ? '2px solid #0d9488' : '1.5px solid var(--border)';
+    const cardBg = allDone || onlyAdhocDone ? '#f0fdf4' : (hasAdhocActive || logDoing.length > 0) && tasks.length === 0 ? '#f0f9ff' : 'var(--surface)';
+    const statusTag = allDone || onlyAdhocDone
       ? `<span style="background:#22c55e;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">เสร็จ</span>`
       : logDoing.length > 0
       ? `<span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">🧵 กำลังแต่งโรล</span>`
