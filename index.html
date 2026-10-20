@@ -2529,6 +2529,23 @@ function openKPISettings() {
 async function savePlanDatesToDB(stepId, start, end) {
   await sb.from('process_steps').update({ planned_start: start||null, planned_end: end||null }).eq('id', stepId);
 }
+// ───── เกณฑ์กลางของการ์ดช่าง ใช้ร่วมกันทั้งหน้า "สถานะ & วางแผน" และ "Monitor" ─────
+// ขั้นตอนที่ถือว่าเป็นงานของช่างในวันนั้น
+function isWorkerDayStep(s, date) {
+  if (!s.planned_start) return s.status === 'in_progress';
+  if (s.planned_start === date || s.original_planned_start === date) return true;
+  return ['assigned','in_progress'].includes(s.status) && s.planned_start < date;
+}
+// ชั่วโมงตามที่หัวหน้าวางแผนไว้ (เวลา/ชิ้น × จำนวน)
+function stepPlannedHours(s) {
+  return (s.time_per_piece && s.qty) ? s.time_per_piece * s.qty / 60 : 0;
+}
+function rollLogHours(d) {
+  if (!d || !d.started_at) return 0;
+  return Math.max(0, (new Date(d.finished_at || Date.now()) - new Date(d.started_at)) / 3600000);
+}
+const fmtHrs = h => h ? (Math.round(h * 10) / 10) + ' ชม.' : '';
+
 function getStepHours(s) {
   if (s.started_at && s.actual_completed_at) {
     return (new Date(s.actual_completed_at) - new Date(s.started_at)) / 3600000;
