@@ -1783,6 +1783,15 @@ async function renderWSMonitor(mc, selDate) {
 
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">
       ${workers.map(w => {
+        // ชื่อในบันทึกงานอาจมีช่องว่างไม่ตรงกับรายชื่อช่าง จึงเทียบแบบไม่สนช่องว่างซ้ำ
+        function logsOf(name) {
+          const k = n => (n||'').replace(/\s+/g,' ').trim();
+          return (selfLogs||[]).filter(l => k(l.worker_name) === k(name));
+        }
+        function rollMins(d) {
+          if (!d.started_at) return 0;
+          return Math.max(0, Math.round((new Date(d.finished_at || Date.now()) - new Date(d.started_at)) / 60000));
+        }
         const mySteps = allSteps.filter(s => s.assigned_name === w);
         const myAdhocs = allAdhocs.filter(t => t.assigned_name === w);
         const myAdhocActive = myAdhocs.filter(t => ['assigned','in_progress'].includes(t.status));
