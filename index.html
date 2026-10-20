@@ -2163,6 +2163,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':''}">
           <td data-label="ลำดับ" style="padding:8px 6px;color:var(--muted)">${arr.length - i}</td>
           <td data-label="ไซส์" style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}</td>
+          <td data-label="สี" style="padding:8px 6px">${rollColor(d.color)}</td>
           <td data-label="OD ก่อน" style="padding:8px 6px;text-align:center">${esc(d.od_before||'—')}</td>
           <td data-label="OD หลัง" style="padding:8px 6px;text-align:center">${doing
             ? `<input id="rd-after-${l.id}" data-before="${esc(d.od_before||'')}" oninput="updateRollDiff('${l.id}')" class="form-input" type="number" step="0.01" style="width:90px;padding:4px 6px" placeholder="OD หลัง">`
