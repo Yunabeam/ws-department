@@ -2735,7 +2735,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
   ]);
   const tasks = (freshSteps || []).filter(s => isWorkerDayStep(s, dateStr));
   const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
-  const logs = (freshLogs || []).filter(l => nameKey(l.worker_name) === nameKey(workerName));
+  const logs = rollLogsNewestFirst((freshLogs || []).filter(l => nameKey(l.worker_name) === nameKey(workerName)));
   const adhocs = (freshAdhocs || []).filter(t => {
     const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
     if (!createdDate || createdDate > dateStr) return false;
