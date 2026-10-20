@@ -2712,15 +2712,14 @@ async function unassignStep(stepId, workerName, dateStr) {
 
 async function openWorkerDayDetail(workerName, dateStr) {
   // ดึงสดจาก Supabase เสมอ เพราะ cache อาจไม่ถูก set (เช่นเปิด Monitor โดยตรง)
-  const [{ data: freshSteps }, { data: freshAdhocs }] = await Promise.all([
+  const [{ data: freshSteps }, { data: freshAdhocs }, { data: freshLogs }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', workerName),
-    sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed'])
+    sb.from('adhoc_tasks').select('*').eq('assigned_name', workerName).in('status',['assigned','in_progress','done','confirmed']),
+    sb.from('worker_self_logs').select('*').eq('log_date', dateStr).eq('log_type','roll_dressing')
   ]);
-  const tasks = (freshSteps || []).filter(s => {
-    if (!s.planned_start) return s.status === 'in_progress';
-    if (['assigned','in_progress'].includes(s.status) && s.planned_start <= dateStr) return true;
-    return dateInRange(dateStr, s.planned_start, s.planned_end);
-  });
+  const tasks = (freshSteps || []).filter(s => isWorkerDayStep(s, dateStr));
+  const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
+  const logs = (freshLogs || []).filter(l => nameKey(l.worker_name) === nameKey(workerName));
   const adhocs = (freshAdhocs || []).filter(t => {
     const createdDate = t.created_at ? t.created_at.substring(0,10) : null;
     if (!createdDate || createdDate > dateStr) return false;
