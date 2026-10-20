@@ -1996,6 +1996,15 @@ const LOG_TYPE_LABEL = { roll_dressing:'แต่งโล', blade_sharpening:'�
 const ROLL_SIZES = ['GS 1"x1"','GS 2"x1",1-/1/2"','GI 2"x1",1-/1/2"','GI 2"x2"','GS 3"x1-1/2"','GI 3"x1-1/2"','GS 4"x2"','GI 4"x2",3"x3"','GI 4"x4",6"x2"'];
 const rollDiff = d => (d.od_before !== '' && d.od_before != null && d.od_after !== '' && d.od_after != null)
   ? (Number(d.od_before) - Number(d.od_after)).toFixed(2) : null;
+const fmtClock = iso => iso ? new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '—';
+// ยังแต่งไม่เสร็จ = นับเวลาเดินถึงตอนนี้
+function rollDuration(d) {
+  if (!d.started_at) return '—';
+  const mins = Math.round((new Date(d.finished_at || Date.now()) - new Date(d.started_at)) / 60000);
+  if (mins < 0) return '—';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h ? `${h} ชม. ${m} น.` : `${m} นาที`;
+}
 function getSelfLogType(name) {
   if (!name) return null;
   const n = name.replace(/\s+/g, ' ').trim();
