@@ -2020,6 +2020,15 @@ const SELF_LOG_WORKERS = {
 };
 const LOG_TYPE_LABEL = { roll_dressing:'แต่งโรล', blade_sharpening:'ช่างลับใบเลื่อย', cutting_job:'งานตัด' };
 const ROLL_SIZES = ['GS 1"x1"','GS 2"x1",1-/1/2"','GI 2"x1",1-/1/2"','GI 2"x2"','GS 3"x1-1/2"','GI 3"x1-1/2"','GS 4"x2"','GI 4"x2",3"x3"','GI 4"x4",6"x2"'];
+const ROLL_COLORS = { 'ฟ้า':'#38bdf8', 'ม่วง':'#a855f7', 'แดง':'#ef4444', 'ทอง':'#d4af37' };
+// แสดงชื่อสีพร้อมจุดสีให้ดูง่าย
+function rollColor(c) {
+  if (!c) return '—';
+  const hex = ROLL_COLORS[c];
+  return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${
+    hex ? `<span style="width:11px;height:11px;border-radius:50%;background:${hex};border:1px solid rgba(0,0,0,.18);flex:0 0 auto"></span>` : ''
+  }${esc(c)}</span>`;
+}
 const rollDiff = d => (d.od_before !== '' && d.od_before != null && d.od_after !== '' && d.od_after != null)
   ? (Number(d.od_before) - Number(d.od_after)).toFixed(2) : null;
 const fmtClock = iso => iso ? new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '—';
