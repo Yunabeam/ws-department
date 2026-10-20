@@ -4420,6 +4420,7 @@ async function openRollQCModal(logId) {
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">ช่าง</div><div class="detail-value">${esc(log.worker_name||'-')}</div></div>
       <div class="detail-item"><div class="detail-label">ไซส์</div><div class="detail-value">${esc(d.size||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">สี</div><div class="detail-value">${rollColor(d.color)}</div></div>
     </div>
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">OD ก่อน → หลัง</div><div class="detail-value">${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}</div></div>
