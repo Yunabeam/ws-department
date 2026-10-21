@@ -4453,7 +4453,7 @@ async function submitRollQC(logId) {
   if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
   const data = Object.assign({}, log.data, {
     status: result === 'pass' ? 'qc_pass' : 'qc_fail',
-    qc_note: note, qc_by: currentProfile?.full_name || '', qc_at: new Date().toISOString(),
+    qc_note: note, qc_by: currentProfile?.full_name || '', qc_by_id: currentProfile?.id || null, qc_at: new Date().toISOString(),
   });
   const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
