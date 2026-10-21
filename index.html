@@ -4673,18 +4673,22 @@ async function renderQCHistory(mc) {
       title: q.projects?.project_no || '-', sub: q.projects?.name || '-',
       pass: q.result === 'pass', notes: q.notes,
     })),
-    ...(rollRaw || [])
-      .filter(l => {
-        const d = l.data || {};
-        if (!d.qc_at) return false;
-        if (isSA) return true;
-        return d.qc_by_id === currentProfile.id || d.qc_by === currentProfile.full_name;
-      })
-      .map(l => { const d = l.data; return {
-        at: d.qc_at, type: 'แต่งโรล', typeColor: '#0d9488',
-        title: d.size || '-', sub: `${esc(l.worker_name||'-')} · OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}`,
-        pass: d.status === 'qc_pass', notes: d.qc_note, raw: true,
-      }; }),
+    // แตกเป็นรายรอบ ไม่ให้รอบเก่าถูกรอบใหม่ทับ
+    ...(rollRaw || []).flatMap(l => {
+      const d = l.data || {};
+      const rounds = (d.qc_rounds && d.qc_rounds.length)
+        ? d.qc_rounds
+        : (d.qc_at ? [{ result: d.status === 'qc_pass' ? 'pass' : 'fail', note: d.qc_note, by: d.qc_by, by_id: d.qc_by_id, at: d.qc_at }] : []);
+      const total = rounds.length;
+      return rounds
+        .filter(r => isSA || r.by_id === currentProfile.id || r.by === currentProfile.full_name)
+        .map((r, i) => ({
+          at: r.at, type: 'แต่งโรล', typeColor: '#0d9488',
+          title: `${d.size || '-'}${total > 1 ? ` · ตรวจครั้งที่ ${i+1}/${total}` : ''}`,
+          sub: `${esc(l.worker_name||'-')} · OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}`,
+          pass: r.result === 'pass', notes: r.note, raw: true,
+        }));
+    }),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50);
 
   mc.innerHTML = `
