@@ -2198,7 +2198,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':bounced?'background:#fef2f2':paused?'background:#f8fafc':''}">
           <td data-label="ลำดับ" style="padding:8px 6px;color:var(--muted)">${arr.length - i}</td>
           <td data-label="ไซส์" style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}${
-            d.edit_count ? `<div style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;white-space:nowrap" title="แก้ไขโดย ${esc(d.edited_by||'-')}">✏️ แก้ไขแล้ว ${d.edit_count} ครั้ง</div>` : ''}${
+            (d.edit_count && currentUser?.is_super_admin) ? `<div style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;white-space:nowrap">✏️ แก้ไขแล้ว ${d.edit_count} ครั้ง · ${esc(d.edited_by||'-')}</div>` : ''}${
             carry ? `<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:3px;white-space:nowrap">📅 ค้างจาก ${fmtDate(rollFirstDate(l))} (${carry} วัน)</div>` : ''}${
             bounced ? `<div style="font-size:11px;font-weight:400;color:#b91c1c;margin-top:3px;white-space:normal">⚠️ QC ตีกลับ: ${esc(d.qc_note||'-')}</div>` : ''}</td>
           <td data-label="สี" style="padding:8px 6px">${rollColor(d.color)}</td>
