@@ -2411,8 +2411,11 @@ async function saveRollEdit(logId, workerName) {
   const { data: log, error: e1 } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
   if (e1) { showToast('เกิดข้อผิดพลาด: ' + e1.message, 'error'); return; }
   const prev = log.data || {};
+  // -1 = เลือก "ค่าเดิม" ของรายการเก่าที่ไม่ตรงคู่ไหน ให้คงไซส์/สีเดิมไว้
+  const vi = +v('re-variant');
+  const variant = ROLL_VARIANTS[vi] || { size: prev.size, color: prev.color };
   const data = Object.assign({}, prev, {
-    size: v('re-size'), color: v('re-color'),
+    size: variant.size, color: variant.color,
     od_before: v('re-before').trim(), od_after: v('re-after').trim(),
     r_value: v('re-r').trim(), problem: v('re-prob').trim(),
     edited_by: currentProfile?.full_name || '', edited_at: new Date().toISOString(),
