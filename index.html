@@ -2036,6 +2036,24 @@ const rollDiff = d => (d.od_before !== '' && d.od_before != null && d.od_after !
 const fmtClock = iso => iso ? new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '—';
 // รายการล่าสุดขึ้นบนสุด ใช้เหมือนกันทุกหน้าที่แสดงบันทึกแต่งโรล
 const rollLogsNewestFirst = arr => [...(arr||[])].sort((a,b) => String(b.created_at||'').localeCompare(String(a.created_at||'')));
+
+// งานที่ยังทำไม่เสร็จ ต้องตามไปโผล่ในวันถัดไปให้ช่างทำต่อได้
+const ROLL_UNFINISHED = ['in_progress','paused','rework'];
+const rollIsUnfinished = d => ROLL_UNFINISHED.includes((d||{}).status);
+// วันแรกที่เริ่มงานนี้ (รายการเก่าที่ยังไม่มี first_date ใช้ log_date แทน)
+const rollFirstDate = l => (l.data||{}).first_date || l.log_date;
+function rollCarryDays(l, date) {
+  const first = rollFirstDate(l);
+  if (!first || first >= date) return 0;
+  return Math.round((new Date(date) - new Date(first)) / 86400000);
+}
+// ดึงบันทึกแต่งโรลของวันที่กำหนด + งานค้างที่ยังไม่เสร็จจากวันก่อนๆ
+async function fetchRollLogs(date) {
+  const { data } = await sb.from('worker_self_logs').select('*')
+    .eq('log_type','roll_dressing').lte('log_date', date)
+    .order('log_date', { ascending: false }).limit(400);
+  return (data || []).filter(l => l.log_date === date || rollIsUnfinished(l.data));
+}
 // เวลาทำงานจริงสะสม ไม่รวมช่วงที่รอ QC ตรวจ
 // current_start = ช่วงที่กำลังลงมือทำอยู่ตอนนี้ (รอบแรกหรือรอบแก้ก็ได้)
 function rollWorkMs(d) {
