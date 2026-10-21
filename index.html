@@ -2419,8 +2419,13 @@ async function finishRollDressing(logId, workerName) {
     finished_at: now.toISOString(),
     current_start: null,
     work_ms: (prev.work_ms || 0) + addMs,
+    first_date: prev.first_date || null,
   });
-  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  // งานค้างข้ามวัน: ย้ายมาลงวันที่กดเสร็จ เพื่อให้เข้าคิว QC ของวันนั้น (เก็บวันเริ่มเดิมไว้ใน first_date)
+  const patch = { data };
+  if (!data.first_date) data.first_date = (await sb.from('worker_self_logs').select('log_date').eq('id', logId).single()).data.log_date;
+  patch.log_date = todayStr();
+  const { error } = await sb.from('worker_self_logs').update(patch).eq('id', logId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast('เสร็จงานแล้ว — ส่งเข้าคิว QC', 'success');
   await renderWorkerLogImpl(document.getElementById('main-content'), workerName, 'roll_dressing');
