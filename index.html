@@ -4466,7 +4466,10 @@ async function renderQCQueue(mc, selDate) {
   const rollRedo = rollPending.filter(l => ((l.data||{}).rework_count||0) > 0).length;
   const rollHtml = `
     <div class="card" style="margin-top:16px">
-      <div class="card-header"><span class="card-title">🧵 แต่งโรลรอสุ่มตรวจ (${rollPending.length})</span></div>
+      <div class="card-header"><span class="card-title">🧵 แต่งโรลรอสุ่มตรวจ (${rollPending.length})${
+        rollRedo ? `<span style="background:#dc2626;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;margin-left:8px">🔁 แก้กลับมา ${rollRedo} — ต้องตรวจ</span>` : ''}</span></div>
+      ${rollRedo ? `<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:9px 12px;margin-top:10px;font-size:13px;color:#991b1b">
+        🔁 มีงานที่เคยตีกลับไปแล้วช่างแก้เสร็จส่งกลับมา <b>${rollRedo} รายการ</b> — อยู่บนสุดของตาราง ควรตรวจก่อน ไม่ใช่งานสุ่ม</div>` : ''}
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
         <input type="date" value="${viewDate}" max="${todayStr()}" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px"
           onchange="renderQCQueue(document.getElementById('main-content'), this.value)">
