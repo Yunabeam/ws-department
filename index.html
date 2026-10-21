@@ -2189,6 +2189,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
           <td data-label="สถานะ" style="padding:8px 6px;text-align:center">${rollStatusBadge(d)}</td>
           <td style="padding:8px 6px;white-space:nowrap">
             ${doing ? `<button class="btn btn-green btn-sm" onclick="finishRollDressing('${l.id}','${esc(workerName)}')">✅ เสร็จงาน</button>` : ''}
+            ${bounced ? `<button class="btn btn-amber btn-sm" onclick="startRollRework('${l.id}','${esc(workerName)}')">▶️ เริ่มแก้ไข</button>` : ''}
             ${currentUser?.is_super_admin ? `<button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button>` : ''}
           </td>
         </tr>`; }).join('')}
