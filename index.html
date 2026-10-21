@@ -4434,6 +4434,7 @@ async function renderQCQueue(mc, selDate) {
                 <td style="padding:8px 6px;text-align:center">${esc(d.od_after||'—')}</td>
                 <td style="padding:8px 6px;text-align:center;font-weight:600;color:var(--teal)">${rollDiff(d) ?? '—'}</td>
                 <td style="padding:8px 6px;text-align:center">${esc(d.r_value||'—')}</td>
+                <td style="padding:8px 6px;text-align:center;font-weight:600;white-space:nowrap">${rollDuration(d)}</td>
                 <td style="padding:8px 6px;color:var(--muted)">${esc(d.problem||'—')}</td>
                 <td style="padding:8px 6px;text-align:center">${rollStatusBadge(d)}</td>
                 <td style="padding:8px 6px"><button class="btn btn-primary btn-sm" onclick="openRollQCModal('${l.id}')">🔍 สุ่มตรวจ</button></td>
