@@ -2578,8 +2578,8 @@ function stepPlannedHours(s) {
   return (s.time_per_piece && s.qty) ? s.time_per_piece * s.qty / 60 : 0;
 }
 function rollLogHours(d) {
-  if (!d || !d.started_at) return 0;
-  return Math.max(0, (new Date(d.finished_at || Date.now()) - new Date(d.started_at)) / 3600000);
+  const ms = rollWorkMs(d);
+  return ms == null ? 0 : ms / 3600000;
 }
 const fmtHrs = h => h ? (Math.round(h * 10) / 10) + ' ชม.' : '';
 
