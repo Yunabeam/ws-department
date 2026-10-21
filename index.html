@@ -2366,6 +2366,7 @@ function rollStatusBadge(d) {
   const isRework = (d.rework_count || 0) > 0;
   const S = {
     in_progress: isRework ? ['#ffedd5','#9a3412','กำลังแก้ไข'] : ['#dbeafe','#1e40af','กำลังแต่ง'],
+    paused:      ['#e2e8f0','#475569','พักไว้'],
     done:        ['#fef9c3','#854d0e','เสร็จสิ้น'],
     qc_pass:     ['#dcfce7','#166534','ผ่าน'],
     rework:      ['#fee2e2','#991b1b','QC ตีกลับ — ต้องแก้ไข'],
