@@ -2470,12 +2470,27 @@ async function renderKPIReport(mc, selMonth) {
   const W_SELF    = cfg.w_self    ?? 3;
   const TARGET_HRS = cfg.target_hrs ?? 160;
 
-  const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }, { data: confirmedAdhocs }] = await Promise.all([
+  const [{ data: confirmedSteps }, { data: failedSteps }, { data: allProjects }, { data: confirmedAdhocs }, { data: rollLogsAll }] = await Promise.all([
     sb.from('process_steps').select('*,projects(confirmed_deadline)').eq('status','confirmed'),
     sb.from('kpi_records').select('*,process_steps(assigned_name,seq,step_name,project_id),projects(project_no,name)').eq('record_type','qc_fail'),
     sb.from('projects').select('id,status,confirmed_deadline').not('status','in','("pending_eng","pending_executive","rejected")'),
     sb.from('adhoc_tasks').select('*').eq('status','confirmed'),
+    sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing'),
   ]);
+  // ช่างที่บันทึกงานเอง (แต่งโรล) ไม่มีเดดไลน์ KPI จึงวัดจาก "ถูก QC ตีกลับ" อย่างเดียว
+  const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
+  const isSelfLogger = w => getSelfLogType(w) === 'roll_dressing';
+  const rollStatsOf = (w, mo) => {
+    const mine = (rollLogsAll||[]).filter(l => nameKey(l.worker_name) === nameKey(w));
+    const rejects = [];
+    let finished = 0, hrs = 0;
+    mine.forEach(l => {
+      const d = l.data || {};
+      (d.qc_rounds||[]).forEach(r => { if (r.result === 'fail' && String(r.at||'').startsWith(mo)) rejects.push({ ...r, log: l }); });
+      if (['done','qc_pass'].includes(d.status) && String(d.finished_at||'').startsWith(mo)) { finished++; hrs += rollLogHours(d); }
+    });
+    return { rejects, finished, hrs };
+  };
 
   const gradeColor = g => g==='A'?'#16a34a':g==='B'?'#0d9488':g==='C'?'#d97706':g==='D'?'#ea580c':'#dc2626';
   const MONTH_TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
