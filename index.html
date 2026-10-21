@@ -4717,10 +4717,8 @@ async function submitQC(projId, p) {
 }
 
 async function renderQCHistory(mc) {
-  const isSA = !!(currentUser?.is_super_admin);
-  // งานแต่งโรลไม่มีโปรเจค จึงเก็บผล QC ไว้ใน worker_self_logs — ดึงมารวมตอนแสดงผล
-  let qcQuery = sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
-  if (!isSA) qcQuery = qcQuery.eq('qc_inspector_id', currentProfile.id);
+  // QC เห็นประวัติทั้งหมดไม่ว่าใครตรวจ จะได้ส่งต่องานกันได้และรู้ว่างานไหนเคยตรวจไปแล้ว
+  const qcQuery = sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
   const [{ data: projectQC }, { data: rollRaw }] = await Promise.all([
     qcQuery,
     sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }).limit(200),
