@@ -2325,11 +2325,13 @@ function updateRollDiff(logId) {
 }
 
 function rollStatusBadge(d) {
+  const isRework = (d.rework_count || 0) > 0;
   const S = {
-    in_progress: ['#dbeafe','#1e40af','กำลังแต่ง'],
-    done:        ['#fef9c3','#854d0e','รอ QC สุ่มตรวจ'],
-    qc_pass:     ['#dcfce7','#166534','QC ผ่าน'],
-    qc_fail:     ['#fee2e2','#991b1b','QC ไม่ผ่าน'],
+    in_progress: isRework ? ['#ffedd5','#9a3412','กำลังแก้ไข'] : ['#dbeafe','#1e40af','กำลังแต่ง'],
+    done:        ['#fef9c3','#854d0e','เสร็จสิ้น'],
+    qc_pass:     ['#dcfce7','#166534','ผ่าน'],
+    rework:      ['#fee2e2','#991b1b','QC ตีกลับ — ต้องแก้ไข'],
+    qc_fail:     ['#fee2e2','#991b1b','QC ตีกลับ — ต้องแก้ไข'],
   }[d.status] || ['#f1f5f9','#64748b','—'];
   return `<span style="background:${S[0]};color:${S[1]};font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap">${S[2]}</span>`;
 }
