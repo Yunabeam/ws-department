@@ -4719,16 +4719,20 @@ async function submitQC(projId, p) {
 async function renderQCHistory(mc) {
   // QC เห็นประวัติทั้งหมดไม่ว่าใครตรวจ จะได้ส่งต่องานกันได้และรู้ว่างานไหนเคยตรวจไปแล้ว
   const qcQuery = sb.from('qc_logs').select('*,projects(project_no,name)').order('created_at', { ascending: false }).limit(50);
-  const [{ data: projectQC }, { data: rollRaw }] = await Promise.all([
+  const [{ data: projectQC }, { data: rollRaw }, { data: userList }] = await Promise.all([
     qcQuery,
     sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }).limit(200),
+    sb.from('app_users').select('id,full_name'),
   ]);
+  // งานโปรเจคเก็บผู้ตรวจเป็น id ส่วนแต่งโรลเก็บเป็นชื่อ แปลงให้แสดงเป็นชื่อเหมือนกัน
+  const userById = Object.fromEntries((userList||[]).map(u => [u.id, u.full_name]));
+  const inspectorName = v => !v ? '-' : (userById[v] || v);
 
   const rows = [
     ...(projectQC || []).map(q => ({
       at: q.created_at, type: 'โปรเจค', typeColor: '#1e3a5f',
       title: q.projects?.project_no || '-', sub: q.projects?.name || '-',
-      pass: q.result === 'pass', notes: q.notes,
+      pass: q.result === 'pass', notes: q.notes, by: q.qc_inspector_id,
     })),
     // แตกเป็นรายรอบ ไม่ให้รอบเก่าถูกรอบใหม่ทับ
     ...(rollRaw || []).flatMap(l => {
@@ -4737,14 +4741,12 @@ async function renderQCHistory(mc) {
         ? d.qc_rounds
         : (d.qc_at ? [{ result: d.status === 'qc_pass' ? 'pass' : 'fail', note: d.qc_note, by: d.qc_by, by_id: d.qc_by_id, at: d.qc_at }] : []);
       const total = rounds.length;
-      return rounds
-        .filter(r => isSA || r.by_id === currentProfile.id || r.by === currentProfile.full_name)
-        .map((r, i) => ({
-          at: r.at, type: 'แต่งโรล', typeColor: '#0d9488',
-          title: `${d.size || '-'}${total > 1 ? ` · ตรวจครั้งที่ ${i+1}/${total}` : ''}`,
-          sub: `${esc(l.worker_name||'-')} · OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}`,
-          pass: r.result === 'pass', notes: r.note, raw: true,
-        }));
+      return rounds.map((r, i) => ({
+        at: r.at, type: 'แต่งโรล', typeColor: '#0d9488',
+        title: `${d.size || '-'}${total > 1 ? ` · ตรวจครั้งที่ ${i+1}/${total}` : ''}`,
+        sub: `${esc(l.worker_name||'-')} · OD ${esc(d.od_before||'-')} → ${esc(d.od_after||'-')}`,
+        pass: r.result === 'pass', notes: r.note, by: r.by, raw: true,
+      }));
     }),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50);
 
@@ -4753,7 +4755,7 @@ async function renderQCHistory(mc) {
     <div class="card">
       ${rows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติ QC</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>วันที่</th><th>ประเภท</th><th>งาน</th><th>ผล</th><th>หมายเหตุ</th></tr></thead>
+        <thead><tr><th>วันที่</th><th>ประเภท</th><th>งาน</th><th>ผล</th><th>หมายเหตุ</th><th>ผู้ตรวจ</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr>
             <td>${fmtDate(r.at)}</td>
@@ -4761,6 +4763,7 @@ async function renderQCHistory(mc) {
             <td><b>${esc(r.title)}</b><br><small>${r.raw ? r.sub : esc(r.sub)}</small></td>
             <td>${r.pass ? '<span class="status s-qc_pass">ผ่าน</span>' : '<span class="status s-rejected">ไม่ผ่าน</span>'}</td>
             <td>${esc(r.notes||'-')}</td>
+            <td style="color:var(--muted);white-space:nowrap">${esc(inspectorName(r.by))}</td>
           </tr>`).join('')}
         </tbody>
       </table></div>`}
