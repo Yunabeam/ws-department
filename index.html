@@ -2521,6 +2521,18 @@ async function renderKPIReport(mc, selMonth) {
     const workloadPct = TARGET_HRS > 0 ? Math.min(Math.round(monthHrs/TARGET_HRS*100),999) : 0;
     const workloadColor = workloadPct>110?'#dc2626':workloadPct>=80?'#16a34a':'#d97706';
     const totalDone = myDone.length + myAdhocDone.length;
+    if (isSelfLogger(w)) {
+      // วัดจากงานที่ถูก QC ตีกลับอย่างเดียว ไม่มีเดดไลน์ให้วัดความตรงเวลา
+      const r = rollStatsOf(w, month);
+      const rLast = rollStatsOf(w, lastMonth);
+      const sc = Math.max(0, 100 - r.rejects.length * W_QC);
+      return { w, selfLog: true, done: r.finished, fails: r.rejects.length, allFails: r.rejects,
+               late: 0, lateSelf: 0, urgentSteps: [], score: sc,
+               grade: sc>=90?'A':sc>=80?'B':sc>=70?'C':sc>=60?'D':'F',
+               monthHrs: r.hrs, lastDone: rLast.finished,
+               workloadPct: TARGET_HRS>0?Math.min(Math.round(r.hrs/TARGET_HRS*100),999):0,
+               workloadColor: '#64748b' };
+    }
     return { w, done: totalDone, fails: myFails.length, allFails: myFails, late: late.length, lateSelf: lateSelf.length, urgentSteps, score, grade, monthHrs, lastDone, workloadPct, workloadColor };
   });
 
