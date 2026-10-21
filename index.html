@@ -2326,6 +2326,21 @@ function updateRollDiff(logId) {
   cell.textContent = rollDiff({ od_before: input.dataset.before, od_after: input.value }) ?? '—';
 }
 
+// ช่างกดเริ่มแก้งานที่ QC ตีกลับ — เริ่มจับเวลารอบแก้ใหม่
+async function startRollRework(logId, workerName) {
+  const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
+  if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
+  const data = Object.assign({}, log.data, {
+    status: 'in_progress',
+    current_start: new Date().toISOString(),
+    od_after: '', r_value: '',
+  });
+  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('เริ่มแก้ไขแล้ว', 'info');
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, 'roll_dressing');
+}
+
 function rollStatusBadge(d) {
   const isRework = (d.rework_count || 0) > 0;
   const S = {
