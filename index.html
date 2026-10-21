@@ -4485,11 +4485,12 @@ async function renderQCQueue(mc, selDate) {
               <th style="padding:8px 6px">OD หลัง</th><th style="padding:8px 6px">ส่วนต่าง</th>
               <th style="padding:8px 6px">R ท่อ</th><th style="padding:8px 6px">เริ่ม</th><th style="padding:8px 6px">เสร็จ</th><th style="padding:8px 6px">ใช้เวลา</th><th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:8px 6px">สถานะ</th><th style="padding:8px 6px"></th>
             </tr></thead>
-            <tbody>${rollPending.map(l => { const d = l.data||{}; return `
-              <tr style="border-bottom:1px solid var(--border)">
+            <tbody>${rollPending.map(l => { const d = l.data||{}; const redo = d.rework_count||0; return `
+              <tr style="border-bottom:1px solid var(--border);${redo?'background:#fef2f2':''}">
                 <td style="padding:8px 6px;color:var(--muted)">${fmtDate(l.log_date)}</td>
                 <td style="padding:8px 6px">${esc(l.worker_name||'—')}</td>
-                <td style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}</td>
+                <td style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}${
+                  redo ? `<div style="font-size:11px;font-weight:700;color:#b91c1c;margin-top:3px;white-space:nowrap">🔁 แก้กลับมา (เคยตีกลับ ${redo} ครั้ง)</div>` : ''}</td>
                 <td style="padding:8px 6px">${rollColor(d.color)}</td>
                 <td style="padding:8px 6px;text-align:center">${esc(d.od_before||'—')}</td>
                 <td style="padding:8px 6px;text-align:center">${esc(d.od_after||'—')}</td>
