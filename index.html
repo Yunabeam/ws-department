@@ -4485,13 +4485,20 @@ async function submitRollQC(logId) {
   const note = (document.getElementById('roll-qc-note')||{}).value || '';
   const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
   if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
-  const data = Object.assign({}, log.data, {
-    status: result === 'pass' ? 'qc_pass' : 'qc_fail',
-    qc_note: note, qc_by: currentProfile?.full_name || '', qc_by_id: currentProfile?.id || null, qc_at: new Date().toISOString(),
+  if (result === 'fail' && !note.trim()) { showToast('กรุณาใส่เหตุผลที่ไม่ผ่าน เพื่อแจ้งช่าง', 'error'); return; }
+  const prev = log.data || {};
+  const at = new Date().toISOString();
+  const round = { result, note, by: currentProfile?.full_name || '', by_id: currentProfile?.id || null, at };
+  const data = Object.assign({}, prev, {
+    // ไม่ผ่าน = ตีกลับให้ช่างแก้ แล้ววนกลับมาเข้าคิว QC ใหม่
+    status: result === 'pass' ? 'qc_pass' : 'rework',
+    qc_note: note, qc_by: round.by, qc_by_id: round.by_id, qc_at: at,
+    qc_rounds: [...(prev.qc_rounds || []), round],
+    rework_count: (prev.rework_count || 0) + (result === 'fail' ? 1 : 0),
   });
   const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
-  showToast(result === 'pass' ? 'บันทึกผล: ผ่าน' : 'บันทึกผล: ไม่ผ่าน', 'success');
+  showToast(result === 'pass' ? 'บันทึกผล: ผ่าน' : 'ตีกลับให้ช่างแก้ไขแล้ว', 'success');
   closeModal();
   await renderQCQueue(document.getElementById('main-content'));
 }
