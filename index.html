@@ -2852,6 +2852,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
       🕐 เริ่ม ${fmtClock(d.started_at)} · 🏁 เสร็จ ${fmtClock(d.finished_at)} · ⏱ ใช้เวลา <b${doing?' style="color:#2563eb"':''}>${rollDuration(d)}</b>
     </div>
     ${d.problem ? `<div style="font-size:12px;color:#b45309;margin-top:4px">⚠️ ${esc(d.problem)}</div>` : ''}
+    ${['rework','qc_fail'].includes(d.status) ? `<div style="font-size:12px;color:#b91c1c;font-weight:600;margin-top:4px">🔁 QC ตีกลับ: ${esc(d.qc_note||'-')}</div>` : ''}
   </div>`; }).join('');
 
   openModal(`🔧 งานของ ${esc(workerName)} · ${fmtDate(dateStr)}`, rollRows + stepRows + adhocRows);
