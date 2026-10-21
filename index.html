@@ -2111,10 +2111,16 @@ async function renderWorkerLog(mc) {
 
 async function renderWorkerLogImpl(mc, workerName, logType) {
   const today = todayStr();
-  const { data: logs } = await sb.from('worker_self_logs')
-    .select('*').eq('worker_name', workerName).eq('log_date', today).order('created_at');
-
   const isBlade = logType === 'blade_sharpening';
+  const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
+  let logs;
+  if (logType === 'roll_dressing') {
+    // รวมงานค้างที่ยังไม่เสร็จจากวันก่อนๆ ด้วย ไม่งั้นช่างกดเสร็จไม่ได้
+    logs = (await fetchRollLogs(today)).filter(l => nameKey(l.worker_name) === nameKey(workerName));
+  } else {
+    ({ data: logs } = await sb.from('worker_self_logs')
+      .select('*').eq('worker_name', workerName).eq('log_date', today).order('created_at'));
+  }
   const isRoll = logType === 'roll_dressing';
   const formHtml = isRoll ? `
     <div class="roll-form" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
