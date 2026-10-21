@@ -4460,7 +4460,10 @@ async function renderQCQueue(mc, selDate) {
     sb.from('projects').select('*').eq('status','pending_qc').order('created_at'),
     sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').eq('log_date', viewDate).order('created_at', { ascending: false }),
   ]);
-  const rollPending = (rollLogs||[]).filter(l => (l.data||{}).status === 'done');
+  // งานที่เคยถูกตีกลับแล้วช่างแก้ส่งมาใหม่ ต้องดันขึ้นบนสุดกันหลุดตรวจ
+  const rollPending = (rollLogs||[]).filter(l => (l.data||{}).status === 'done')
+    .sort((a,b) => ((b.data||{}).rework_count||0) - ((a.data||{}).rework_count||0));
+  const rollRedo = rollPending.filter(l => ((l.data||{}).rework_count||0) > 0).length;
   const rollHtml = `
     <div class="card" style="margin-top:16px">
       <div class="card-header"><span class="card-title">🧵 แต่งโรลรอสุ่มตรวจ (${rollPending.length})</span></div>
