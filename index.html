@@ -2035,11 +2035,20 @@ const rollDiff = d => (d.od_before !== '' && d.od_before != null && d.od_after !
 const fmtClock = iso => iso ? new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '—';
 // รายการล่าสุดขึ้นบนสุด ใช้เหมือนกันทุกหน้าที่แสดงบันทึกแต่งโรล
 const rollLogsNewestFirst = arr => [...(arr||[])].sort((a,b) => String(b.created_at||'').localeCompare(String(a.created_at||'')));
-// ยังแต่งไม่เสร็จ = นับเวลาเดินถึงตอนนี้
+// เวลาทำงานจริงสะสม ไม่รวมช่วงที่รอ QC ตรวจ
+// current_start = ช่วงที่กำลังลงมือทำอยู่ตอนนี้ (รอบแรกหรือรอบแก้ก็ได้)
+function rollWorkMs(d) {
+  if (!d) return null;
+  if (d.work_ms != null || d.current_start) {
+    return (d.work_ms || 0) + (d.current_start ? Math.max(0, Date.now() - new Date(d.current_start)) : 0);
+  }
+  if (!d.started_at) return null;   // รายการเก่าก่อนมี work_ms
+  return Math.max(0, new Date(d.finished_at || Date.now()) - new Date(d.started_at));
+}
 function rollDuration(d) {
-  if (!d.started_at) return '—';
-  const mins = Math.round((new Date(d.finished_at || Date.now()) - new Date(d.started_at)) / 60000);
-  if (mins < 0) return '—';
+  const ms = rollWorkMs(d);
+  if (ms == null) return '—';
+  const mins = Math.round(ms / 60000);
   const h = Math.floor(mins / 60), m = mins % 60;
   return h ? `${h} ชม. ${m} น.` : `${m} นาที`;
 }
