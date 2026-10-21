@@ -2347,6 +2347,29 @@ function updateRollDiff(logId) {
   cell.textContent = rollDiff({ od_before: input.dataset.before, od_after: input.value }) ?? '—';
 }
 
+// พักงาน = หยุดนาฬิกา เก็บเวลาที่ทำไปแล้วไว้ / ทำต่อ = เริ่มจับเวลาใหม่
+async function pauseRollDressing(logId, workerName) {
+  const { data: log, error: e1 } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
+  if (e1) { showToast('เกิดข้อผิดพลาด: ' + e1.message, 'error'); return; }
+  const prev = log.data || {};
+  const addMs = prev.current_start ? Math.max(0, Date.now() - new Date(prev.current_start)) : 0;
+  const data = Object.assign({}, prev, { status: 'paused', current_start: null, work_ms: (prev.work_ms || 0) + addMs });
+  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('พักงานแล้ว — นาฬิกาหยุดนับ', 'info');
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, 'roll_dressing');
+}
+
+async function resumeRollDressing(logId, workerName) {
+  const { data: log, error: e1 } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
+  if (e1) { showToast('เกิดข้อผิดพลาด: ' + e1.message, 'error'); return; }
+  const data = Object.assign({}, log.data, { status: 'in_progress', current_start: new Date().toISOString() });
+  const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ทำงานต่อแล้ว', 'info');
+  await renderWorkerLogImpl(document.getElementById('main-content'), workerName, 'roll_dressing');
+}
+
 // ช่างกดเริ่มแก้งานที่ QC ตีกลับ — เริ่มจับเวลารอบแก้ใหม่
 async function startRollRework(logId, workerName) {
   const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
