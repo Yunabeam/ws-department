@@ -2021,8 +2021,35 @@ const SELF_LOG_WORKERS = {
   'นายศรันย์ สิงแก้ว': 'blade_sharpening',
 };
 const LOG_TYPE_LABEL = { roll_dressing:'แต่งโรล', blade_sharpening:'ช่างลับใบเลื่อย', cutting_job:'งานตัด' };
-const ROLL_SIZES = ['GS 1"x1"','GS 2"x1",1-/1/2"','GI 2"x1",1-/1/2"','GI 2"x2"','GS 3"x1-1/2"','GI 3"x1-1/2"','GS 4"x2"','GI 4"x2",3"x3"','GI 4"x4",6"x2"'];
 const ROLL_COLORS = { 'ฟ้า':'#38bdf8', 'ม่วง':'#a855f7', 'แดง':'#ef4444', 'ทอง':'#d4af37' };
+// ไซส์กับสีจับคู่กันตายตัวตามสเปก Standard SQ TST — ช่างเลือกครั้งเดียวได้ทั้งคู่ ไม่ต้องเลือกสีเอง
+const ROLL_VARIANTS = [
+  { size:'GS 1"x1"',           color:'ฟ้า' },
+  { size:'GS 2"x1",1-/1/2"',   color:'ฟ้า' },
+  { size:'GS 2"x1",1-/1/2"',   color:'ม่วง' },
+  { size:'GI 2"x1",1-/1/2"',   color:'แดง' },
+  { size:'GI 2"x1",1-/1/2"',   color:'ทอง' },
+  { size:'GI 2"x2"',           color:'แดง' },
+  { size:'GI 2"x2"',           color:'ทอง' },
+  { size:'GS 3"x1-1/2"',       color:'ฟ้า' },
+  { size:'GS 3"x1-1/2"',       color:'ม่วง' },
+  { size:'GI 3"x1-1/2"',       color:'แดง' },
+  { size:'GI 3"x1-1/2"',       color:'ทอง' },
+  { size:'GS 4"x2"',           color:'ฟ้า' },
+  { size:'GS 4"x2"',           color:'ม่วง' },
+  { size:'GI 4"x2",3"x3"',     color:'แดง' },
+  { size:'GI 4"x2",3"x3"',     color:'ทอง' },
+  { size:'GI 4"x4",6"x2"',     color:'แดง' },
+  { size:'GI 4"x4",6"x2"',     color:'ทอง' },
+];
+const rollVariantLabel = v => `${v.size} · ${v.color}`;
+// selected = {size,color} ของรายการเดิม ถ้าไม่ตรงคู่ไหนเลยจะเพิ่มตัวเลือก "ค่าเดิม" ไว้ให้
+function rollVariantOptions(selected) {
+  const idx = selected ? ROLL_VARIANTS.findIndex(v => v.size === selected.size && v.color === selected.color) : -1;
+  const legacy = (selected && selected.size && idx === -1)
+    ? `<option value="-1" selected>${esc(selected.size)}${selected.color ? ' · ' + esc(selected.color) : ''} (ค่าเดิม)</option>` : '';
+  return legacy + ROLL_VARIANTS.map((v,i) => `<option value="${i}" ${i===idx?'selected':''}>${esc(rollVariantLabel(v))}</option>`).join('');
+}
 // แสดงชื่อสีพร้อมจุดสีให้ดูง่าย
 function rollColor(c) {
   if (!c) return '—';
