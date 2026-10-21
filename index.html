@@ -2347,12 +2347,18 @@ async function finishRollDressing(logId, workerName) {
   const { data: log, error: readErr } = await sb.from('worker_self_logs').select('data').eq('id', logId).single();
   if (readErr) { showToast('เกิดข้อผิดพลาด: ' + readErr.message, 'error'); return; }
 
-  const data = Object.assign({}, log.data, {
+  const prev = log.data || {};
+  const now = new Date();
+  // ปิดช่วงที่กำลังทำอยู่ แล้วบวกเข้าเวลาทำงานสะสม
+  const addMs = prev.current_start ? Math.max(0, now - new Date(prev.current_start)) : 0;
+  const data = Object.assign({}, prev, {
     od_after: odAfter,
     r_value: val('rd-r-' + logId),
     problem: val('rd-prob-' + logId),
     status: 'done',
-    finished_at: new Date().toISOString(),
+    finished_at: now.toISOString(),
+    current_start: null,
+    work_ms: (prev.work_ms || 0) + addMs,
   });
   const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
