@@ -4398,17 +4398,25 @@ async function acceptWork(id) {
 // ============================================================
 // QC
 // ============================================================
-async function renderQCQueue(mc) {
+async function renderQCQueue(mc, selDate) {
+  // แต่งโรลเป็นการ "สุ่ม" ตรวจ งานที่ไม่ถูกสุ่มถือว่าจบแล้ว จึงดูเป็นรายวันไม่ให้ค้างสะสม
+  const viewDate = selDate || todayStr();
   const [{ data }, { data: rollLogs }] = await Promise.all([
     sb.from('projects').select('*').eq('status','pending_qc').order('created_at'),
-    sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }).limit(200),
+    sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').eq('log_date', viewDate).order('created_at', { ascending: false }),
   ]);
   const rollPending = (rollLogs||[]).filter(l => (l.data||{}).status === 'done');
   const rollHtml = `
     <div class="card" style="margin-top:16px">
       <div class="card-header"><span class="card-title">🧵 แต่งโรลรอสุ่มตรวจ (${rollPending.length})</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <input type="date" value="${viewDate}" max="${todayStr()}" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px"
+          onchange="renderQCQueue(document.getElementById('main-content'), this.value)">
+        <button class="btn btn-sm btn-ghost" onclick="renderQCQueue(document.getElementById('main-content'))">วันนี้</button>
+        <span style="font-size:12px;color:var(--muted)">งานที่ไม่ได้สุ่มตรวจถือว่าจบแล้ว ไม่ค้างในคิว</span>
+      </div>
       ${rollPending.length === 0
-        ? '<p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">ไม่มีงานแต่งโรลรอตรวจ</p>'
+        ? `<p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">ไม่มีงานแต่งโรลรอตรวจของวันที่ ${fmtDate(viewDate)}</p>`
         : `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead><tr style="background:var(--surface-alt)">
               <th style="padding:8px 6px;text-align:left">วันที่</th><th style="padding:8px 6px;text-align:left">ช่าง</th>
