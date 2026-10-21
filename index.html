@@ -2218,7 +2218,8 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
                        <button class="btn btn-ghost btn-sm" onclick="pauseRollDressing('${l.id}','${esc(workerName)}')" title="หยุดนาฬิกา ไว้ทำต่อวันหลัง">⏸ พักไว้ก่อน</button>` : ''}
             ${paused ? `<button class="btn btn-amber btn-sm" onclick="resumeRollDressing('${l.id}','${esc(workerName)}')">▶️ ทำต่อ</button>` : ''}
             ${bounced ? `<button class="btn btn-amber btn-sm" onclick="startRollRework('${l.id}','${esc(workerName)}')">▶️ เริ่มแก้ไข</button>` : ''}
-            ${currentUser?.is_super_admin ? `<button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button>` : ''}
+            ${currentUser?.is_super_admin ? `<button class="btn btn-ghost btn-sm" onclick="openRollEditModal('${l.id}','${esc(workerName)}')" title="แก้ไขรายละเอียดที่ช่างกรอกผิด">✏️ แก้ไข</button>
+                                             <button class="btn btn-ghost btn-sm" onclick="deleteWorkerLog('${l.id}','${esc(workerName)}','${logType}')" style="color:#ef4444">ลบ</button>` : ''}
           </td>
         </tr>`; }).join('')}
       </tbody>
