@@ -2194,10 +2194,11 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         <th style="padding:8px 6px"></th>
       </tr></thead>
       <tbody>
-        ${rollLogsNewestFirst(logs).map((l,i,arr) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const bounced = d.status === 'rework' || d.status === 'qc_fail'; const diff = rollDiff(d); return `
-        <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':bounced?'background:#fef2f2':''}">
+        ${rollLogsNewestFirst(logs).map((l,i,arr) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const paused = d.status === 'paused'; const bounced = d.status === 'rework' || d.status === 'qc_fail'; const carry = rollCarryDays(l, today); const diff = rollDiff(d); return `
+        <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':bounced?'background:#fef2f2':paused?'background:#f8fafc':''}">
           <td data-label="ลำดับ" style="padding:8px 6px;color:var(--muted)">${arr.length - i}</td>
           <td data-label="ไซส์" style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}${
+            carry ? `<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:3px;white-space:nowrap">📅 ค้างจาก ${fmtDate(rollFirstDate(l))} (${carry} วัน)</div>` : ''}${
             bounced ? `<div style="font-size:11px;font-weight:400;color:#b91c1c;margin-top:3px;white-space:normal">⚠️ QC ตีกลับ: ${esc(d.qc_note||'-')}</div>` : ''}</td>
           <td data-label="สี" style="padding:8px 6px">${rollColor(d.color)}</td>
           <td data-label="OD ก่อน" style="padding:8px 6px;text-align:center">${esc(d.od_before||'—')}</td>
