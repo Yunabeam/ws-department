@@ -4511,8 +4511,9 @@ async function submitRollQC(logId) {
   const { error } = await sb.from('worker_self_logs').update({ data }).eq('id', logId);
   if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
   showToast(result === 'pass' ? 'บันทึกผล: ผ่าน' : 'ตีกลับให้ช่างแก้ไขแล้ว', 'success');
+  const viewing = document.querySelector('input[type="date"]')?.value;
   closeModal();
-  await renderQCQueue(document.getElementById('main-content'));
+  await renderQCQueue(document.getElementById('main-content'), viewing || undefined);
 }
 
 async function revertFromQC(projId, projectNo) {
