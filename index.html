@@ -4289,10 +4289,23 @@ async function renderTaskHistory(mc) {
     mc.innerHTML = `<div class="section-header"><div class="section-title">📜 ประวัติงาน</div></div><div class="card"><div class="empty"><div class="empty-icon">👆</div>กรุณาเลือกชื่อช่างในหน้างานของฉันก่อน</div></div>`;
     return;
   }
-  const [{ data: steps }, { data: adhocs }] = await Promise.all([
+  const [{ data: steps }, { data: adhocs }, { data: rollAll }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false }),
     sb.from('adhoc_tasks').select('*').eq('assigned_name', name).eq('status','confirmed').order('completed_at', { ascending: false }),
+    sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }),
   ]);
+  // ช่างที่บันทึกงานเอง (แต่งโรล) ไม่มี process_steps จึงต้องดึงจากบันทึกงานมาด้วย
+  const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
+  const rollRows = (rollAll||[])
+    .filter(l => nameKey(l.worker_name) === nameKey(name) && ['done','qc_pass'].includes((l.data||{}).status))
+    .map(l => { const d = l.data||{}; return {
+      proj: '🧵 แต่งโรล',
+      projName: `${d.size||'-'}${d.color ? ' · ' + d.color : ''}`,
+      seq: d.roll_no || '-',
+      name: `OD ${d.od_before||'-'} → ${d.od_after||'-'} · ส่วนต่าง ${rollDiff(d) ?? '-'} · R ท่อ ${d.r_value||'-'} · ใช้เวลา ${rollDuration(d)}`,
+      badge: rollStatusBadge(d),
+      date: d.finished_at || l.created_at,
+    }; });
   const stepRows = (steps||[]).map(s => ({
     worker: s.assigned_name || '-',
     proj: s.projects?.project_no || '-',
