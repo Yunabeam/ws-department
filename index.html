@@ -4294,10 +4294,11 @@ async function renderTaskHistory(mc) {
     sb.from('adhoc_tasks').select('*').eq('assigned_name', name).eq('status','confirmed').order('completed_at', { ascending: false }),
     sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }),
   ]);
-  // ช่างที่บันทึกงานเอง (แต่งโรล) ไม่มี process_steps จึงต้องดึงจากบันทึกงานมาด้วย
+  // ช่างที่บันทึกงานเอง (แต่งโรล / ลับใบเลื่อย) ไม่มี process_steps จึงต้องดึงจากบันทึกงานมาด้วย
   const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
-  const rollRows = (rollAll||[])
-    .filter(l => nameKey(l.worker_name) === nameKey(name) && ['done','qc_pass'].includes((l.data||{}).status))
+  const mine = (rollAll||[]).filter(l => nameKey(l.worker_name) === nameKey(name));
+  const rollRows = mine
+    .filter(l => l.log_type === 'roll_dressing' && ['done','qc_pass'].includes((l.data||{}).status))
     .map(l => { const d = l.data||{}; return {
       proj: '🧵 แต่งโรล',
       projName: `${d.size||'-'}${d.color ? ' · ' + d.color : ''}`,
@@ -4305,6 +4306,16 @@ async function renderTaskHistory(mc) {
       name: `OD ${d.od_before||'-'} → ${d.od_after||'-'} · ส่วนต่าง ${rollDiff(d) ?? '-'} · R ท่อ ${d.r_value||'-'} · ใช้เวลา ${rollDuration(d)}`,
       badge: rollStatusBadge(d),
       date: d.finished_at || l.created_at,
+    }; });
+  const bladeRows = mine
+    .filter(l => l.log_type === 'blade_sharpening')
+    .map(l => { const d = l.data||{}; const pass = d.result === 'pass'; return {
+      proj: '🪚 ลับใบเลื่อย',
+      projName: `เครื่องผลิต ${d.machine_prod||'-'} · เครื่องลับ ${d.machine_sharpen||'-'}`,
+      seq: d.blade_no || '-',
+      name: `สูงฟัน ${d.after_tooth_height||'-'} · ความโต ${d.after_diameter||'-'} · ความหนา ${d.after_thickness||'-'}${d.time_used ? ' · ใช้เวลา '+d.time_used+' นาที' : ''}`,
+      badge: `<span style="background:${pass?'#dcfce7':'#fee2e2'};color:${pass?'#166534':'#991b1b'};font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap">${pass?'ผ่าน':'ไม่ผ่าน'}</span>`,
+      date: l.created_at,
     }; });
   const stepRows = (steps||[]).map(s => ({
     worker: s.assigned_name || '-',
