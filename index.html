@@ -4292,7 +4292,7 @@ async function renderTaskHistory(mc) {
   const [{ data: steps }, { data: adhocs }, { data: rollAll }] = await Promise.all([
     sb.from('process_steps').select('*,projects(project_no,name)').eq('assigned_name', name).in('status',['confirmed','failed_qc']).order('manager_confirmed_at', { ascending: false }),
     sb.from('adhoc_tasks').select('*').eq('assigned_name', name).eq('status','confirmed').order('completed_at', { ascending: false }),
-    sb.from('worker_self_logs').select('*').eq('log_type','roll_dressing').order('created_at', { ascending: false }),
+    sb.from('worker_self_logs').select('*').order('created_at', { ascending: false }),
   ]);
   // ช่างที่บันทึกงานเอง (แต่งโรล / ลับใบเลื่อย) ไม่มี process_steps จึงต้องดึงจากบันทึกงานมาด้วย
   const nameKey = n => (n||'').replace(/\s+/g,' ').trim();
@@ -4335,7 +4335,7 @@ async function renderTaskHistory(mc) {
     status: 'confirmed',
     date: t.completed_at || t.updated_at,
   }));
-  const allRows = [...stepRows, ...adhocRows, ...rollRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const allRows = [...stepRows, ...adhocRows, ...rollRows, ...bladeRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📜 ประวัติงาน${!isWorkerName ? ` — ${esc(name)}` : ''}</div></div>
     <div class="card">
