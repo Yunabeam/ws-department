@@ -2349,8 +2349,10 @@ async function saveWorkerLog(workerName, logType) {
   if (logType === 'roll_dressing') {
     const now = new Date().toISOString();
     const variant = ROLL_VARIANTS[+v('variant')] || {};
-    data = { size: variant.size || '', color: variant.color || '', od_before: v('od_before'), status: 'in_progress',
+    data = { size: variant.size || '', color: variant.color || '', roll_no: v('roll_no').trim(),
+             od_before: v('od_before'), status: 'in_progress',
              started_at: now, current_start: now, work_ms: 0, rework_count: 0, first_date: todayStr() };
+    if (!data.roll_no) { showToast('กรุณากรอก No. Roll (ถ้าไม่มีให้พิมพ์ว่า ไม่มี)', 'error'); return; }
     if (!data.od_before) { showToast('กรุณากรอก OD ก่อนแต่งโรล', 'error'); return; }
   } else if (logType === 'blade_sharpening') {
     data = {
