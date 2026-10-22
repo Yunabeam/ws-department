@@ -1935,7 +1935,7 @@ async function renderWSMonitor(mc, selDate) {
       <div style="background:${doing?'#eff6ff':'#f8fafc'};border-left:4px solid ${doing?'#3b82f6':'#cbd5e1'};border-radius:8px;padding:10px 14px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
           <div><span style="font-weight:700;font-size:14px">🧵 แต่งโรล</span>
-            <span style="color:var(--text-secondary);font-size:13px;margin-left:6px">${esc(d.size||'—')}</span></div>
+            <span style="color:var(--text-secondary);font-size:13px;margin-left:6px">${esc(d.size||'—')}${d.roll_no ? ' · No. ' + esc(d.roll_no) : ''}</span></div>
           ${rollStatusBadge(d)}
         </div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--text-secondary)">
@@ -2210,6 +2210,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
     <table class="roll-table" style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:var(--surface-alt)">
         <th style="padding:8px 6px;text-align:left">#</th>
+        <th style="padding:8px 6px;text-align:left">No. Roll</th>
         <th style="padding:8px 6px;text-align:left">ไซส์</th>
         <th style="padding:8px 6px;text-align:left">สี</th>
         <th style="padding:8px 6px">OD ก่อน</th>
@@ -2224,6 +2225,7 @@ async function renderWorkerLogImpl(mc, workerName, logType) {
         ${rollLogsNewestFirst(logs).map((l,i,arr) => { const d = l.data||{}; const doing = d.status === 'in_progress'; const paused = d.status === 'paused'; const bounced = d.status === 'rework' || d.status === 'qc_fail'; const carry = rollCarryDays(l, today); const diff = rollDiff(d); return `
         <tr style="border-bottom:1px solid var(--border);${doing?'background:#eff6ff':bounced?'background:#fef2f2':paused?'background:#f8fafc':''}">
           <td data-label="ลำดับ" style="padding:8px 6px;color:var(--muted)">${arr.length - i}</td>
+          <td data-label="No. Roll" style="padding:8px 6px;font-weight:600">${esc(d.roll_no||'—')}</td>
           <td data-label="ไซส์" style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}${
             (d.edit_count && currentUser?.is_super_admin) ? `<div style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;white-space:nowrap">✏️ แก้ไขแล้ว ${d.edit_count} ครั้ง · ${esc(d.edited_by||'-')}</div>` : ''}${
             carry ? `<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:3px;white-space:nowrap">📅 ค้างจาก ${fmtDate(rollFirstDate(l))} (${carry} วัน)</div>` : ''}${
@@ -2397,6 +2399,7 @@ async function openRollEditModal(logId, workerName) {
   openModal('✏️ แก้ไขรายละเอียดงานแต่งโรล', `
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">ช่าง: <b>${esc(log.worker_name||'-')}</b> · วันที่ ${fmtDate(log.log_date)} · สถานะ ${rollStatusBadge(d)}</p>
     <div class="form-group"><label>ไซส์ · สี</label><select id="re-variant" class="form-input">${rollVariantOptions(d)}</select></div>
+    <div class="form-group"><label>No. Roll</label><input id="re-rollno" class="form-input" value="${esc(d.roll_no||'')}" placeholder="ถ้าไม่มีพิมพ์ ไม่มี"></div>
     <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
       <div class="form-group"><label>OD ก่อนแต่งโรล</label><input id="re-before" class="form-input" type="number" step="0.01" value="${esc(d.od_before||'')}"></div>
       <div class="form-group"><label>OD หลังแต่งโรล</label><input id="re-after" class="form-input" type="number" step="0.01" value="${esc(d.od_after||'')}"></div>
@@ -2419,7 +2422,7 @@ async function saveRollEdit(logId, workerName) {
   const vi = +v('re-variant');
   const variant = ROLL_VARIANTS[vi] || { size: prev.size, color: prev.color };
   const data = Object.assign({}, prev, {
-    size: variant.size, color: variant.color,
+    size: variant.size, color: variant.color, roll_no: v('re-rollno').trim(),
     od_before: v('re-before').trim(), od_after: v('re-after').trim(),
     r_value: v('re-r').trim(), problem: v('re-prob').trim(),
     edited_by: currentProfile?.full_name || '', edited_at: new Date().toISOString(),
@@ -3001,7 +3004,7 @@ async function openWorkerDayDetail(workerName, dateStr) {
 
   const rollRows = logs.map(l => { const d = l.data||{}; const doing = d.status === 'in_progress'; return `<div class="step-card"${doing?' style="background:#eff6ff"':''}>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <b>🧵 แต่งโรล: ${esc(d.size || '-')}</b>
+      <b>🧵 แต่งโรล: ${esc(d.size || '-')}${d.roll_no ? ' · No. ' + esc(d.roll_no) : ''}</b>
       ${rollStatusBadge(d)}
     </div>
     <div style="font-size:13px;color:var(--muted)">
@@ -4107,6 +4110,7 @@ function showQCFailDetail(idx) {
       return {
         type: 'แต่งโรล',
         job: `${d.size || '-'}${d.color ? ' · ' + d.color : ''}`,
+        rollNo: d.roll_no || '-',
         detail: `OD ${d.od_before||'-'} → ${d.od_after||'-'}${d.r_value ? ' · R ท่อ '+d.r_value : ''}`,
         notes: s.note || '-',
         by: s.by || '-',
@@ -4115,6 +4119,7 @@ function showQCFailDetail(idx) {
     }
     return {
       type: 'โปรเจค',
+      rollNo: '-',
       job: s.projects?.project_no || '-',
       detail: s.process_steps?.step_name || '-',
       notes: s.notes || '-',
@@ -4124,6 +4129,7 @@ function showQCFailDetail(idx) {
   }).sort((a,b) => String(b.date).localeCompare(String(a.date)));
   const rows = fails.map(f => `<tr>
     <td><span style="background:${f.type==='แต่งโรล'?'#0d9488':'#1e3a5f'};color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap">${f.type}</span></td>
+    <td style="color:var(--muted)">${esc(f.rollNo)}</td>
     <td><b>${esc(f.job)}</b></td>
     <td style="color:var(--muted)">${esc(f.detail)}</td>
     <td style="color:#dc2626">${esc(f.notes)}</td>
@@ -4132,8 +4138,8 @@ function showQCFailDetail(idx) {
   </tr>`).join('');
   openModal(`❌ QC Fail ของ ${esc(workerName)}`, `
     <div class="table-wrap"><table>
-      <thead><tr><th>ประเภท</th><th>งาน</th><th>รายละเอียด</th><th>เหตุผลที่ไม่ผ่าน</th><th>ผู้ตรวจ</th><th>วันที่</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">ไม่มีข้อมูล</td></tr>'}</tbody>
+      <thead><tr><th>ประเภท</th><th>No. Roll</th><th>งาน</th><th>รายละเอียด</th><th>เหตุผลที่ไม่ผ่าน</th><th>ผู้ตรวจ</th><th>วันที่</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">ไม่มีข้อมูล</td></tr>'}</tbody>
     </table></div>
   `);
 }
@@ -4603,7 +4609,7 @@ async function renderQCQueue(mc, selDate) {
         : `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead><tr style="background:var(--surface-alt)">
               <th style="padding:8px 6px;text-align:left">วันที่</th><th style="padding:8px 6px;text-align:left">ช่าง</th>
-              <th style="padding:8px 6px;text-align:left">ไซส์</th><th style="padding:8px 6px;text-align:left">สี</th><th style="padding:8px 6px">OD ก่อน</th>
+              <th style="padding:8px 6px;text-align:left">No. Roll</th><th style="padding:8px 6px;text-align:left">ไซส์</th><th style="padding:8px 6px;text-align:left">สี</th><th style="padding:8px 6px">OD ก่อน</th>
               <th style="padding:8px 6px">OD หลัง</th><th style="padding:8px 6px">ส่วนต่าง</th>
               <th style="padding:8px 6px">R ท่อ</th><th style="padding:8px 6px">เริ่ม</th><th style="padding:8px 6px">เสร็จ</th><th style="padding:8px 6px">ใช้เวลา</th><th style="padding:8px 6px;text-align:left">ปัญหาที่เจอ</th><th style="padding:8px 6px">สถานะ</th><th style="padding:8px 6px"></th>
             </tr></thead>
@@ -4611,6 +4617,7 @@ async function renderQCQueue(mc, selDate) {
               <tr style="border-bottom:1px solid var(--border);${redo?'background:#fef2f2':''}">
                 <td style="padding:8px 6px;color:var(--muted)">${fmtDate(l.log_date)}</td>
                 <td style="padding:8px 6px">${esc(l.worker_name||'—')}</td>
+                <td style="padding:8px 6px;font-weight:600">${esc(d.roll_no||'—')}</td>
                 <td style="padding:8px 6px;font-weight:600">${esc(d.size||'—')}${
                   redo ? `<div style="font-size:11px;font-weight:700;color:#b91c1c;margin-top:3px;white-space:nowrap">🔁 แก้กลับมา (เคยตีกลับ ${redo} ครั้ง)</div>` : ''}</td>
                 <td style="padding:8px 6px">${rollColor(d.color)}</td>
@@ -4653,6 +4660,7 @@ async function openRollQCModal(logId) {
   openModal('🧵 สุ่มตรวจงานแต่งโรล', `
     <div class="detail-row">
       <div class="detail-item"><div class="detail-label">ช่าง</div><div class="detail-value">${esc(log.worker_name||'-')}</div></div>
+      <div class="detail-item"><div class="detail-label">No. Roll</div><div class="detail-value">${esc(d.roll_no||'-')}</div></div>
       <div class="detail-item"><div class="detail-label">ไซส์</div><div class="detail-value">${esc(d.size||'-')}</div></div>
       <div class="detail-item"><div class="detail-label">สี</div><div class="detail-value">${rollColor(d.color)}</div></div>
     </div>
