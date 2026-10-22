@@ -4324,19 +4324,19 @@ async function renderTaskHistory(mc) {
     status: 'confirmed',
     date: t.completed_at || t.updated_at,
   }));
-  const allRows = [...stepRows, ...adhocRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const allRows = [...stepRows, ...adhocRows, ...rollRows].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   mc.innerHTML = `
     <div class="section-header"><div class="section-title">📜 ประวัติงาน${!isWorkerName ? ` — ${esc(name)}` : ''}</div></div>
     <div class="card">
       ${allRows.length === 0 ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีประวัติงาน</div>' : `
       <div class="table-wrap"><table>
-        <thead><tr><th>โปรเจค</th><th>#</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
+        <thead><tr><th>โปรเจค / ประเภท</th><th># / No. Roll</th><th>ขั้นตอน / งาน</th><th>สถานะ</th><th>เสร็จเมื่อ</th></tr></thead>
         <tbody>${allRows.map(r => `
           <tr>
             <td><b>${esc(r.proj)}</b>${r.projName?`<br><small>${esc(r.projName)}</small>`:''}</td>
             <td>${r.seq}</td>
             <td>${esc(r.name)}</td>
-            <td>${statusBadge(r.status)}</td>
+            <td>${r.badge || statusBadge(r.status)}</td>
             <td>${fmtDate(r.date?.substring(0,10))}</td>
           </tr>`).join('')}
         </tbody>
