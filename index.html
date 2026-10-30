@@ -3876,6 +3876,31 @@ async function doRevertStep(stepId, status) {
   renderWSConfirmSteps(document.getElementById('main-content'));
 }
 
+// กรณีช่างกดเสร็จผิด — ย้อนงานซัพพอร์ตกลับไปให้ช่างทำต่อ (แบบเดียวกับขั้นตอนงานโปรเจค)
+function revertAdhocTask(taskId) {
+  openModal('↩ ย้อนกลับสถานะงานซัพพอร์ต', `
+    <p style="margin-bottom:14px;color:var(--text-secondary)">เลือกสถานะที่ถูกต้อง</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" onclick="doRevertAdhoc('${taskId}','in_progress')">⏳ กำลังทำอยู่</button>
+      <button class="btn btn-primary" onclick="doRevertAdhoc('${taskId}','assigned')">📋 ยังไม่เริ่ม</button>
+    </div>
+  `);
+}
+
+async function doRevertAdhoc(taskId, status) {
+  if (!(currentUser?.is_super_admin || currentProfile?.is_super_admin)) {
+    showToast('คุณไม่มีสิทธิ์ดำเนินการนี้', 'error'); return;
+  }
+  // ยังไม่เริ่ม = ล้างเวลาเริ่มด้วย / กำลังทำ = เก็บเวลาเริ่มเดิมไว้
+  const patch = { status, completed_at: null };
+  if (status === 'assigned') patch.started_at = null;
+  const { error } = await sb.from('adhoc_tasks').update(patch).eq('id', taskId);
+  if (error) { showToast('เกิดข้อผิดพลาด: ' + error.message, 'error'); return; }
+  showToast('ย้อนกลับเรียบร้อย', 'success');
+  closeModal();
+  await renderWSConfirmSteps(document.getElementById('main-content'));
+}
+
 async function deleteAdhocTask(id) {
   if (!confirm('ยกเลิกงานซัพพอร์ตนี้?')) return;
   const { error } = await sb.from('adhoc_tasks').delete().eq('id', id);
