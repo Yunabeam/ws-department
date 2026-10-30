@@ -3849,7 +3849,8 @@ async function renderWSConfirmSteps(mc) {
             <td>${timeAgo(t.completed_at)}</td>
             <td style="display:flex;gap:6px">
               <button class="btn btn-sm btn-green" onclick="confirmAdhocTask('${t.id}')">✅ ยืนยัน</button>
-              ${isSA ? `<button class="btn btn-sm btn-danger" onclick="deleteAdhocTask('${t.id}')">🗑 ลบ</button>` : ''}
+              ${isSA ? `<button class="btn btn-sm btn-ghost" onclick="revertAdhocTask('${t.id}')" title="กรณีช่างกดเสร็จผิด">↩ ย้อน</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteAdhocTask('${t.id}')">🗑 ลบ</button>` : ''}
             </td>
           </tr>`).join('')}
         </tbody>
