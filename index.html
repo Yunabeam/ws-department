@@ -3203,7 +3203,9 @@ function wsTab(p, stepMap) {
   const isDone = s => ['confirmed','done_by_worker'].includes(s.status);
   if (steps.some(s => s.status === 'in_progress')) return 'wip';  // ช่างถืองานอยู่ตอนนี้
   if (steps.every(isDone)) return 'wip';                          // เสร็จครบ รอหัวหน้าส่ง QC
-  return 'waitsched';                                             // เหลือขั้นตอนที่ยังไม่มีใครถือ
+  // หัวหน้าวางแผนครบทุกขั้นตอนที่เหลือแล้ว (มีช่าง + มีวันที่) ถือว่าเดินงานแล้ว
+  if (steps.every(s => isDone(s) || (s.assigned_name && s.planned_start))) return 'wip';
+  return 'waitsched';                                             // ยังมีขั้นตอนที่ยังไม่ได้วางแผน
 }
 
 function renderWSPrjCards(projects, stepMap, workers, filter) {
